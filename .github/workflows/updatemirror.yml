@@ -1,0 +1,41 @@
+name: Mirror upstream repositories
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron:  '30 05 * * *'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        repo:
+          - build_tools
+          - core
+          - core-fonts
+          - desktop-sdk
+          - dictionaries
+          - Docker-DocumentServer
+          - document-server-integration
+          - document-server-package
+          - document-templates
+          - onlyoffice.github.io
+          - sdkjs
+          - sdkjs-forms
+          - server
+          - web-apps
+
+    steps:
+    - name: Checkout runner workspace
+      run: |
+        mkdir -p tmp-repo
+        cd tmp-repo
+        git config --global user.name "Euro-Office via GitHub Actions"
+        git clone --bare https://github.com/ONLYOFFICE/${{ matrix.repo }}.git
+        cd ${{ matrix.repo }}.git
+        git remote add eurooffice https://x-access-token:${{ env.GITHUB_TOKEN }}@github.com/Euro-Office/${{ matrix.repo }}.git
+        git push --mirror eurooffice
+      env:
+        GITHUB_TOKEN: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
