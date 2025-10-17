@@ -15,6 +15,8 @@ jobs:
           - build_tools
           - core
           - core-fonts
+          - DesktopEditors
+          - desktop-apps
           - desktop-sdk
           - dictionaries
           - Docker-DocumentServer

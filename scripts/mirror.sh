@@ -29,6 +29,8 @@ REPO_LIST=(
     "build_tools"
     "core"
     "core-fonts"
+    "DesktopEditors"
+    "desktop-apps"
     "desktop-sdk"
     "dictionaries"
     "Docker-DocumentServer"
@@ -86,7 +88,7 @@ for repo in "${REPO_LIST[@]}"; do
         git remote add target "git@github.com:$TARGET_ORG/$repo.git"
 
         # push all branches and tags to target. Use separate commands so DRY_RUN shows them clearly.
-        write_operation git push --mirror target
+        write_operation git push --all target
         write_operation git push target --tags
     )
 done
