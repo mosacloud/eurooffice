@@ -13,33 +13,36 @@ jobs:
       fail-fast: false
       matrix:
         repo:
-          - build_tools
-          - core
-          - core-fonts
-          - DesktopEditors
-          - desktop-apps
-          - desktop-sdk
-          - dictionaries
-          - Docker-DocumentServer
-          - document-server-integration
-          - document-server-package
-          - document-templates
-          - onlyoffice.github.io
-          - sdkjs
-          - sdkjs-forms
-          - server
-          - web-apps
+          - ONLYOFFICE/build_tools
+          - ONLYOFFICE/core
+          - ONLYOFFICE/core-fonts
+          - ONLYOFFICE/DesktopEditors
+          - ONLYOFFICE/desktop-apps
+          - ONLYOFFICE/desktop-sdk
+          - ONLYOFFICE/dictionaries
+          - ONLYOFFICE/Docker-DocumentServer
+          - ONLYOFFICE/document-server-integration
+          - ONLYOFFICE/document-server-package
+          - ONLYOFFICE/document-templates
+          - ONLYOFFICE/onlyoffice.github.io
+          - ONLYOFFICE/sdkjs
+          - ONLYOFFICE/sdkjs-forms
+          - ONLYOFFICE/server
+          - ONLYOFFICE/web-apps
+          - ONLYOFFICE-data/build_tools_data
 
     steps:
     - name: Checkout runner workspace
       run: |
+        # Split repo name into owner and repo parts
+        IFS='/' read -r owner repo <<< "${{ matrix.repo }}"
         mkdir -p tmp-repo
         cd tmp-repo
         git config --global user.name "Euro-Office via GitHub Actions"
-        git clone --bare https://github.com/ONLYOFFICE/${{ matrix.repo }}.git
-        cd ${{ matrix.repo }}.git
+        git clone --bare https://github.com/${{ matrix.repo }}.git
+        cd $repo.git
         git fetch --all
-        git remote add eurooffice https://x-access-token:${{ env.GITHUB_TOKEN }}@github.com/Euro-Office/${{ matrix.repo }}.git
+        git remote add eurooffice https://x-access-token:${{ env.GITHUB_TOKEN }}@github.com/Euro-Office/${repo}.git
         # Push all branches and tags from the cloned bare repository to the eurooffice remote.
         # Avoid --mirror because it can delete branches on the target that exist only there.
         git push eurooffice --all --force
