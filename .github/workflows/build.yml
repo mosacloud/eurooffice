@@ -1,0 +1,91 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - build/document-server-custom
+  pull_request:
+    branches:
+      - build/document-server-custom
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch or tag to checkout for repositories'
+        required: false
+        default: 'master'
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: euro-office/documentserver
+  CHECKOUT_REF: ${{ github.event.inputs.ref || 'master' }}
+
+jobs:
+  build-and-push:
+    runs-on: self-hosted
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          path: fork/
+
+      - name: Checkout core-fonts
+        uses: actions/checkout@v4
+        with:
+          repository: euro-office/core-fonts
+          path: core-fonts/
+          ref: ${{ env.CHECKOUT_REF }}
+          token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+
+      - name: Checkout sdkjs
+        uses: actions/checkout@v4
+        with:
+          repository: euro-office/sdkjs
+          path: sdkjs/
+          ref: ${{ env.CHECKOUT_REF }}
+          token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+
+      - name: Checkout web-apps
+        uses: actions/checkout@v4
+        with:
+          repository: euro-office/web-apps
+          path: web-apps/
+          ref: ${{ env.CHECKOUT_REF }}
+          token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./fork/build/Dockerfile
+          target: final
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
