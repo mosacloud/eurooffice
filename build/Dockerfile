@@ -37,17 +37,20 @@ RUN	./allfontsgen --input="/build/core-fonts" \
 		--selection="/build/deploy/font_selection.bin"
 
 
-FROM base AS build-sdkjs
+#### BUILD SDKJS COMPONENT ####
+FROM base AS sdkjs
 
-RUN apt-get install -y grunt
-RUN mkdir -p /build/sdkjs
-COPY ./sdkjs /build/sdkjs
+COPY ./sdkjs /sdkjs
 
-RUN cd /build/sdkjs/build && \
-	npm install && \
-	grunt
+WORKDIR /sdkjs/build
+
+RUN <<EOF
+npm install
+grunt
+EOF
 
 
+#### BUILD WEB-APPS COMPONENT ####
 FROM base AS build-webapps
 
 RUN apt-get install -y grunt
