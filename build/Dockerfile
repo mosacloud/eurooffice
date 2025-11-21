@@ -105,8 +105,7 @@ EOF
 # Copy each built component into the final image
 COPY --from=sdkjs /sdkjs/deploy/sdkjs /sdkjs
 COPY --from=web-apps /web-apps/deploy/web-apps /web-apps
-COPY --from=server /server/build/docservice /server/docservice
-COPY --from=server /server/build/fileconverter /server/fileconverter
+COPY --from=server /server/build/* /server/
 
 # Copy the configuration files from the server component
 COPY --from=server /server/Common/config /server/config
