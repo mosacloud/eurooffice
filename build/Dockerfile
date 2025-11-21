@@ -94,6 +94,13 @@ npm install
 pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/build/metrics
 EOF
 
+# AdminPanel
+WORKDIR /server/AdminPanel/server
+RUN <<EOF
+npm install
+pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/build/adminpanel
+EOF
+
 
 #### FINAL ####
 # Debian 13 for the final image
