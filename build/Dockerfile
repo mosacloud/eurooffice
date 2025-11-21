@@ -1,13 +1,25 @@
-# Temporary usage of onlyoffice/documentserver as base to get required tools and bootstrapping
+# Bring in the upstream OnlyOffice Document Server image so that
+# we can extract things from it later
 FROM onlyoffice/documentserver:latest AS oo-base
 
 
-FROM ubuntu:24.04 AS base
-RUN apt-get update && apt-get install -y openjdk-21-jdk npm wget zip brotli
+# Debian 13 as the base image for building our components
+FROM debian:trixie AS base
+
+# Install base dependencies needed for all components
+RUN <<EOF
+apt update
+apt install -y nodejs npm openjdk-21-jdk wget zip brotli
+
+npm install -g @yao-pkg/pkg grunt-cli
+EOF
 
 
-FROM base AS build-fonts
-# We may not need this build step in the end as it can be generated on the fly on the document server using /usr/bin/documentserver-generate-allfonts.sh
+#### BUILD FONTS ####
+# We may not need this build step in the end as it can be
+# generated on the fly on the document server using
+# /usr/bin/documentserver-generate-allfonts.sh
+FROM base AS fonts
 
 WORKDIR /build
 
