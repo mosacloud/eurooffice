@@ -80,6 +80,28 @@ pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/build/docservice
 EOF
 
 
+#### FINAL ####
+# Debian 13 for the final image
+FROM debian:trixie AS final
+
+RUN <<EOF
+apt update
+apt install -y nodejs npm
+
+npm install -g cross-env@5.1.2
+
+# Make an empty sdkjs plugins directory for now
+mkdir /sdkjs-plugins
+EOF
+
+# Copy each built component into the final image
+COPY --from=sdkjs /sdkjs/deploy/sdkjs /sdkjs
+COPY --from=web-apps /web-apps/deploy/web-apps /web-apps
+COPY --from=server /server/build/docservice /server/docservice
+
+# Copy the configuration files from the server component
+COPY --from=server /server/Common/config /server/config
+
 # Stage for having a runnable image with document server by applying the built files
 # Once we can build everything we can base on ubuntu and wrap up packaging
 FROM oo-base AS final
