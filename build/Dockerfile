@@ -64,6 +64,22 @@ grunt
 EOF
 
 
+#### BUILD SERVER COMPONENT ####
+FROM base AS server
+
+ADD ./server /server
+
+WORKDIR /server/Common
+RUN npm install
+
+# DocService
+WORKDIR /server/DocService
+RUN <<EOF
+npm install
+pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/build/docservice
+EOF
+
+
 # Stage for having a runnable image with document server by applying the built files
 # Once we can build everything we can base on ubuntu and wrap up packaging
 FROM oo-base AS final
