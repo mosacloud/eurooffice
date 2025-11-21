@@ -51,15 +51,17 @@ EOF
 
 
 #### BUILD WEB-APPS COMPONENT ####
-FROM base AS build-webapps
+FROM base AS web-apps 
 
-RUN apt-get install -y grunt
-RUN mkdir -p /build/web-apps
-COPY ./web-apps /build/web-apps
+COPY ./web-apps /web-apps
 
-RUN cd /build/web-apps/build && \
-	npm install && \
-	grunt
+WORKDIR /web-apps/build
+
+RUN <<EOF
+./sprites.sh
+npm install
+grunt
+EOF
 
 
 # Stage for having a runnable image with document server by applying the built files
