@@ -87,6 +87,13 @@ npm install
 pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/build/fileconverter
 EOF
 
+# Metrics
+WORKDIR /server/Metrics
+RUN <<EOF
+npm install
+pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/build/metrics
+EOF
+
 
 #### FINAL ####
 # Debian 13 for the final image
