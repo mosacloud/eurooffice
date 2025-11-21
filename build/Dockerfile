@@ -1,6 +1,6 @@
 # Bring in the upstream OnlyOffice Document Server image so that
 # we can extract things from it later
-FROM onlyoffice/documentserver:latest AS oo-base
+FROM onlyoffice/documentserver:latest AS upstream
 
 
 # Debian 13 as the base image for building our components
@@ -23,8 +23,8 @@ FROM base AS fonts
 
 WORKDIR /build
 
-COPY --from=oo-base /var/www/onlyoffice/documentserver/server/FileConverter/bin/* /build/
-COPY --from=oo-base /var/www/onlyoffice/documentserver/server/tools/allfontsgen /build/
+COPY --from=upstream /var/www/onlyoffice/documentserver/server/FileConverter/bin/* /build/
+COPY --from=upstream /var/www/onlyoffice/documentserver/server/tools/allfontsgen /build/
 RUN mkdir -p /build/deploy /build/core-fonts
 
 COPY ./core-fonts /build/core-fonts
@@ -124,18 +124,12 @@ COPY --from=server /server/build/* /server/
 # Copy the configuration files from the server component
 COPY --from=server /server/Common/config /server/config
 
-# Stage for having a runnable image with document server by applying the built files
-# Once we can build everything we can base on ubuntu and wrap up packaging
-FROM oo-base AS final
+# Copy over tool components from the upstream image
+COPY --from=upstream /var/www/onlyoffice/documentserver/server/tools/allfontsgen /server/tools/allfontsgen
+COPY --from=upstream /var/www/onlyoffice/documentserver/server/tools/allthemesgen /server/tools/allthemesgen
+COPY --from=upstream /var/www/onlyoffice/documentserver/server/tools/pluginsmanager /server/tools/pluginsmanager
 
-COPY --from=build-fonts /build/deploy/AllFonts-web.js /var/www/onlyoffice/documentserver/sdkjs/common/AllFonts.js
-COPY --from=build-fonts /build/deploy/AllFonts.js /var/www/onlyoffice/documentserver/server/FileConverter/bin/AllFonts.js
-COPY --exclude=.git core-fonts /var/www/onlyoffice/documentserver/core-fonts
 
-COPY --from=build-sdkjs /build/sdkjs/deploy /var/www/onlyoffice/documentserver/sdkjs
-COPY --from=build-webapps /build/web-apps/deploy /var/www/onlyoffice/documentserver/web-apps
-
-# Stage for targetting copying just the build files out
-FROM scratch AS output
-
-COPY --from=final /var/www/onlyoffice/documentserver /documentserver
+#COPY --from=build-fonts /build/deploy/AllFonts-web.js /var/www/onlyoffice/documentserver/sdkjs/common/AllFonts.js
+#COPY --from=build-fonts /build/deploy/AllFonts.js /var/www/onlyoffice/documentserver/server/FileConverter/bin/AllFonts.js
+#COPY --exclude=.git core-fonts /var/www/onlyoffice/documentserver/core-fonts
