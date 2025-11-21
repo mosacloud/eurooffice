@@ -79,6 +79,14 @@ npm install
 pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/build/docservice
 EOF
 
+# FileConverter
+# TODO: This component requires x2t at runtime in order to work fully
+WORKDIR /server/FileConverter
+RUN <<EOF
+npm install
+pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/build/fileconverter
+EOF
+
 
 #### FINAL ####
 # Debian 13 for the final image
@@ -98,6 +106,7 @@ EOF
 COPY --from=sdkjs /sdkjs/deploy/sdkjs /sdkjs
 COPY --from=web-apps /web-apps/deploy/web-apps /web-apps
 COPY --from=server /server/build/docservice /server/docservice
+COPY --from=server /server/build/fileconverter /server/fileconverter
 
 # Copy the configuration files from the server component
 COPY --from=server /server/Common/config /server/config
