@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - build/document-server-custom
+      - build/elzody/docker
   pull_request:
     branches:
       - build/document-server-custom
+      - build/elzody/docker
   workflow_dispatch:
     inputs:
       ref:
