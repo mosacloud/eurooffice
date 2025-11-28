@@ -133,7 +133,7 @@ COPY --exclude=.git core-fonts /var/www/onlyoffice/documentserver/core-fonts
 COPY --from=sdkjs /sdkjs/deploy/sdkjs /var/www/onlyoffice/documentserver/sdkjs
 COPY --from=web-apps /web-apps/deploy/web-apps /var/www/onlyoffice/documentserver/web-apps
 
-COPY ./onlyoffice.github.io/sdkjs-plugins /sdkjs-plugins
+# COPY ./onlyoffice.github.io/sdkjs-plugins /sdkjs-plugins
 
 
 #### FINAL ####
