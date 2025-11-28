@@ -5,10 +5,6 @@ on:
     branches:
       - build/document-server-custom
       - build/elzody/docker
-  pull_request:
-    branches:
-      - build/document-server-custom
-      - build/elzody/docker
   workflow_dispatch:
     inputs:
       ref:
@@ -33,16 +29,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: euro-office/core
+          path: core/
           ref: private/tbari/cmake-linux-build
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
 
-      - name: Setup Ninja
-        uses: ashutoshvarma/setup-ninja@master
-      - name: Build with CMake
-        uses: ashutoshvarma/action-cmake-build@master
+      - name: Set up Ninja build system
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
+      - name: Build X2tConverter with CMake
+        uses: threeal/cmake-action@v2.1.0
         with:
-          build-dir: "${{ runner.workspace }}/X2tConverter/build/cmake"
-          configure-options: -G Ninja
+          source-dir: "core/X2tConverter/build/cmake"
+          build-dir: "core/X2tConverter/build/cmake"
+          generator: Ninja
 
   build-and-push:
     runs-on: self-hosted

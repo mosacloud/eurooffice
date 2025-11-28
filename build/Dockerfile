@@ -116,8 +116,8 @@ COPY --from=fonts /build/deploy/AllFonts-web.js /var/www/onlyoffice/documentserv
 COPY --from=fonts /build/deploy/AllFonts.js /var/www/onlyoffice/documentserver/server/FileConverter/bin/AllFonts.js
 COPY --exclude=.git core-fonts /var/www/onlyoffice/documentserver/core-fonts
 
-COPY --from=sdkjs /build/sdkjs/deploy /var/www/onlyoffice/documentserver/sdkjs
-COPY --from=web-apps /build/web-apps/deploy /var/www/onlyoffice/documentserver/web-apps
+COPY --from=sdkjs /sdkjs/deploy/sdkjs /var/www/onlyoffice/documentserver/sdkjs
+COPY --from=web-apps /web-apps/deploy/web-apps /var/www/onlyoffice/documentserver/web-apps
 
 COPY ./onlyoffice.github.io/sdkjs-plugins /sdkjs-plugins
 
