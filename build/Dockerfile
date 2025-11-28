@@ -2,6 +2,15 @@
 # we can extract things from it later
 FROM onlyoffice/documentserver:latest AS upstream
 
+FROM ubuntu AS core
+
+RUN apt update && apt install -y build-essential cmake ninja-build git
+
+RUN --mount=type=bind,source=./core,target=/core,rw <<EOF
+cd /core/X2tConverter/build/cmake
+cmake -G Ninja
+cmake --build .
+EOF
 
 # Debian 13 as the base image for building our components
 FROM debian:trixie AS base
