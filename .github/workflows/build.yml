@@ -23,6 +23,27 @@ env:
   CHECKOUT_REF: ${{ github.event.inputs.ref || 'master' }}
 
 jobs:
+  core:
+    runs-on: self-hosted
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          repository: euro-office/core
+          ref: private/tbari/cmake-linux-build
+          token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+
+      - name: Setup Ninja
+        uses: ashutoshvarma/setup-ninja@master
+      - name: Build with CMake
+        uses: ashutoshvarma/action-cmake-build@master
+        with:
+          build-dir: "${{ runner.workspace }}/X2tConverter/build/cmake"
+          configure-options: -G Ninja
+
   build-and-push:
     runs-on: self-hosted
     permissions:
