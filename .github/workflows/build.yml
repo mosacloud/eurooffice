@@ -28,7 +28,7 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - core
+          # - core
           - sdkjs
           - web-apps
           - server
