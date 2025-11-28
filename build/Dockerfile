@@ -102,7 +102,7 @@ pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/build/fileconver
 EOF
 
 # Metrics
-RUN --mount=type=bind,source=./server,target=/server <<EOF
+RUN --mount=type=bind,source=./server,target=/server,rw <<EOF
 cd /server/Metrics
 npm install
 pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/build/metrics
@@ -110,7 +110,7 @@ EOF
 
 # AdminPanel
 RUN --mount=type=bind,source=./server,target=/server,rw <<EOF
-cd /server/AdminPanel
+cd /server/AdminPanel/server
 npm install
 pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/build/adminpanel
 EOF

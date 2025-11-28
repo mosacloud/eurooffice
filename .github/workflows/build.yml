@@ -19,43 +19,35 @@ env:
   CHECKOUT_REF: ${{ github.event.inputs.ref || 'master' }}
 
 jobs:
-  core:
+  build:
     runs-on: self-hosted
-    if: false
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - core
+          - sdkjs
+          - web-apps
+          - server
+
     steps:
-      - name: Checkout repository
+      - name: Checkout fork repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          path: fork/
+
+      - name: Checkout core
+        uses: actions/checkout@v4
+        if: matrix.target == 'core'
         with:
           repository: euro-office/core
           path: core/
           ref: private/tbari/cmake-linux-build
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
-
-      - name: Set up Ninja build system
-        uses: seanmiddleditch/gha-setup-ninja@v5
-
-      - name: Build X2tConverter with CMake
-        uses: threeal/cmake-action@v2.1.0
-        with:
-          source-dir: "core/X2tConverter/build/cmake"
-          build-dir: "core/X2tConverter/build/cmake"
-          generator: Ninja
-
-  build-and-push:
-    runs-on: self-hosted
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          path: fork/
 
       - name: Checkout core-fonts
         uses: actions/checkout@v4
@@ -67,6 +59,7 @@ jobs:
 
       - name: Checkout sdkjs-plugins
         uses: actions/checkout@v4
+        if: false
         with:
           repository: euro-office/onlyoffice.github.io
           path: onlyoffice.github.io/
@@ -75,6 +68,7 @@ jobs:
 
       - name: Checkout sdkjs
         uses: actions/checkout@v4
+        if: matrix.target != 'core'
         with:
           repository: euro-office/sdkjs
           path: sdkjs/
@@ -83,6 +77,7 @@ jobs:
 
       - name: Checkout web-apps
         uses: actions/checkout@v4
+        if: matrix.target != 'core'
         with:
           repository: euro-office/web-apps
           path: web-apps/
@@ -91,11 +86,56 @@ jobs:
 
       - name: Checkout server
         uses: actions/checkout@v4
+        if: matrix.target != 'core'
         with:
           repository: euro-office/server
-          path: server /
+          path: server/
           ref: ${{ env.CHECKOUT_REF }}
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-${{ matrix.target }}-
+            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./fork/build/Dockerfile
+          target: ${{ matrix.target }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+
+  combine:
+    runs-on: self-hosted
+    needs: build
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -121,7 +161,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./fork/build/Dockerfile
+          file: ./build/Dockerfile
           target: finalupstream
           push: true
           tags: ${{ steps.meta.outputs.tags }}
