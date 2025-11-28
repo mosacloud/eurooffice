@@ -128,7 +128,7 @@ FROM upstream AS finalupstream
 
 COPY --from=fonts /build/deploy/AllFonts-web.js /var/www/onlyoffice/documentserver/sdkjs/common/AllFonts.js
 COPY --from=fonts /build/deploy/AllFonts.js /var/www/onlyoffice/documentserver/server/FileConverter/bin/AllFonts.js
-COPY --exclude=.git core-fonts /var/www/onlyoffice/documentserver/core-fonts
+COPY --from=fonts /build/core-fonts /var/www/onlyoffice/documentserver/core-fonts
 
 COPY --from=sdkjs /sdkjs/deploy/sdkjs /var/www/onlyoffice/documentserver/sdkjs
 COPY --from=web-apps /web-apps/deploy/web-apps /var/www/onlyoffice/documentserver/web-apps

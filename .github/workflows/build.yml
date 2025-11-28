@@ -32,6 +32,7 @@ jobs:
           - sdkjs
           - web-apps
           - server
+          - fonts
 
     steps:
       - name: Checkout fork repository
