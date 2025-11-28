@@ -101,6 +101,26 @@ npm install
 pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/build/adminpanel
 EOF
 
+#### FINAL UPSTREAM IMAGE ####
+# This image is based on the upstream OnlyOffice Document Server image
+# but with our built components copied into it. 
+# This is the first step to proof we are able to build components
+# successfully and integrate them into the Document Server.
+# Later, we will create a final image that contains only the
+# built components and necessary runtime files and dependency services like
+# PostgreSQL, Redis, RabbitMQ
+
+FROM upstream AS finalupstream
+
+COPY --from=fonts /build/deploy/AllFonts-web.js /var/www/onlyoffice/documentserver/sdkjs/common/AllFonts.js
+COPY --from=fonts /build/deploy/AllFonts.js /var/www/onlyoffice/documentserver/server/FileConverter/bin/AllFonts.js
+COPY --exclude=.git core-fonts /var/www/onlyoffice/documentserver/core-fonts
+
+COPY --from=sdkjs /build/sdkjs/deploy /var/www/onlyoffice/documentserver/sdkjs
+COPY --from=web-apps /build/web-apps/deploy /var/www/onlyoffice/documentserver/web-apps
+
+COPY ./onlyoffice.github.io/sdkjs-plugins /sdkjs-plugins
+
 
 #### FINAL ####
 # Debian 13 for the final image
@@ -115,6 +135,9 @@ npm install -g cross-env@5.1.2
 # Make an empty sdkjs plugins directory for now
 mkdir /sdkjs-plugins
 EOF
+
+# https://github.com/ONLYOFFICE/build_tools/blob/cc24ee8e85be9890a77ae014bfc37aecf5209f33/scripts/deploy_server.py#L130-L142
+COPY ./onlyoffice.github.io/sdkjs-plugins /sdkjs-plugins
 
 # Copy each built component into the final image
 COPY --from=sdkjs /sdkjs/deploy/sdkjs /sdkjs

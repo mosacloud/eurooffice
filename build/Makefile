@@ -10,6 +10,10 @@ docker-target:
 build:
 	@docker build --target output -t euro-office/documentserver -o output -f ./Dockerfile ../../
 
+.PHONY: run
+run: build-image
+	@docker run -it --rm -p 8080:80 euro-office/documentserver bash
+
 .PHONY: report
 report: build-image
 	@docker run --rm --entrypoint "" euro-office/documentserver bash -c 'find /var/www/onlyoffice -type f -exec sha256sum {} \;' > /tmp/ours.txt

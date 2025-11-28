@@ -44,6 +44,14 @@ jobs:
           ref: ${{ env.CHECKOUT_REF }}
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
 
+      - name: Checkout sdkjs-plugins
+        uses: actions/checkout@v4
+        with:
+          repository: euro-office/onlyoffice.github.io
+          path: onlyoffice.github.io/
+          ref: master
+          token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+
       - name: Checkout sdkjs
         uses: actions/checkout@v4
         with:
@@ -93,7 +101,7 @@ jobs:
         with:
           context: .
           file: ./fork/build/Dockerfile
-          target: final
+          target: finalupstream
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
