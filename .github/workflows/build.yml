@@ -21,6 +21,7 @@ env:
 jobs:
   core:
     runs-on: self-hosted
+    if: false
     permissions:
       contents: read
       packages: write

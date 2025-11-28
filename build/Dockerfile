@@ -40,11 +40,12 @@ RUN	./allfontsgen --input="/build/core-fonts" \
 #### BUILD SDKJS COMPONENT ####
 FROM base AS sdkjs
 
-COPY ./sdkjs /sdkjs
+# COPY ./sdkjs /sdkjs
 
-WORKDIR /sdkjs/build
+# WORKDIR /sdkjs/build
 
-RUN <<EOF
+RUN --mount=type=bind,source=./sdkjs,target=/sdkjs,rw <<EOF
+cd /sdkjs/build
 npm install
 grunt
 EOF
@@ -53,11 +54,12 @@ EOF
 #### BUILD WEB-APPS COMPONENT ####
 FROM base AS web-apps 
 
-COPY ./web-apps /web-apps
+# COPY ./web-apps /web-apps
 
-WORKDIR /web-apps/build
+# WORKDIR /web-apps/build
 
-RUN <<EOF
+RUN --mount=type=bind,source=./web-apps,target=/web-apps,rw <<EOF
+cd /web-apps/build
 ./sprites.sh
 npm install
 grunt
@@ -67,36 +69,39 @@ EOF
 #### BUILD SERVER COMPONENT ####
 FROM base AS server
 
-ADD ./server /server
+# COPY ./server /server
 
-WORKDIR /server/Common
-RUN npm install
+# Common
+RUN --mount=type=bind,source=./server,target=/server,rw <<EOF
+cd /server/Common
+npm install
+EOF
 
 # DocService
-WORKDIR /server/DocService
-RUN <<EOF
+RUN --mount=type=bind,source=./server,target=/server,rw <<EOF
+cd /server/DocService
 npm install
 pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/build/docservice
 EOF
 
 # FileConverter
 # TODO: This component requires x2t at runtime in order to work fully
-WORKDIR /server/FileConverter
-RUN <<EOF
+RUN --mount=type=bind,source=./server,target=/server,rw <<EOF
+cd /server/FileConverter
 npm install
 pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/build/fileconverter
 EOF
 
 # Metrics
-WORKDIR /server/Metrics
-RUN <<EOF
+RUN --mount=type=bind,source=./server,target=/server <<EOF
+cd /server/Metrics
 npm install
 pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/build/metrics
 EOF
 
 # AdminPanel
-WORKDIR /server/AdminPanel/server
-RUN <<EOF
+RUN --mount=type=bind,source=./server,target=/server,rw <<EOF
+cd /server/AdminPanel
 npm install
 pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/build/adminpanel
 EOF
