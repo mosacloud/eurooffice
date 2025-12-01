@@ -127,8 +127,7 @@ COPY --from=fonts /build/deploy/AllFonts.js /var/www/onlyoffice/documentserver/s
 COPY --from=fonts /build/core-fonts /var/www/onlyoffice/documentserver/core-fonts
 
 COPY --from=sdkjs /sdkjs /var/www/onlyoffice/documentserver/sdkjs
-#COPY --from=web-apps /web-apps /var/www/onlyoffice/documentserver/web-apps
-#COPY --from=web-apps /web-apps/deploy/web-apps /var/www/onlyoffice/documentserver/web-apps
+COPY --from=web-apps /web-apps /var/www/onlyoffice/documentserver/web-apps
 
 # COPY ./onlyoffice.github.io/sdkjs-plugins /sdkjs-plugins
 
