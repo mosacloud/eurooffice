@@ -49,36 +49,32 @@ RUN	./allfontsgen --input="/build/core-fonts" \
 #### BUILD SDKJS COMPONENT ####
 FROM base AS sdkjs
 
-# COPY ./sdkjs /sdkjs
-
-# WORKDIR /sdkjs/build
-
-RUN --mount=type=bind,source=./sdkjs,target=/sdkjs,rw <<EOF
-cd /sdkjs/build
+RUN --mount=type=bind,source=./sdkjs,target=/temp,rw <<EOF
+cd /temp/build
 npm install
 grunt
+
+# The built files need to be accessible in other layers
+cp -r /temp/deploy/sdkjs /sdkjs
 EOF
 
 
 #### BUILD WEB-APPS COMPONENT ####
 FROM base AS web-apps 
 
-# COPY ./web-apps /web-apps
-
-# WORKDIR /web-apps/build
-
-RUN --mount=type=bind,source=./web-apps,target=/web-apps,rw <<EOF
-cd /web-apps/build
+RUN --mount=type=bind,source=./web-apps,target=/temp,rw <<EOF
+cd /temp/build
 ./sprites.sh
 npm install
 grunt
+
+# The built files need to be accessible in other layers
+cp -r /temp/deploy/web-apps /web-apps
 EOF
 
 
 #### BUILD SERVER COMPONENT ####
 FROM base AS server
-
-# COPY ./server /server
 
 # Common
 RUN --mount=type=bind,source=./server,target=/server,rw <<EOF
@@ -130,8 +126,9 @@ COPY --from=fonts /build/deploy/AllFonts-web.js /var/www/onlyoffice/documentserv
 COPY --from=fonts /build/deploy/AllFonts.js /var/www/onlyoffice/documentserver/server/FileConverter/bin/AllFonts.js
 COPY --from=fonts /build/core-fonts /var/www/onlyoffice/documentserver/core-fonts
 
-COPY --from=sdkjs /sdkjs/deploy/sdkjs /var/www/onlyoffice/documentserver/sdkjs
-COPY --from=web-apps /web-apps/deploy/web-apps /var/www/onlyoffice/documentserver/web-apps
+COPY --from=sdkjs /sdkjs /var/www/onlyoffice/documentserver/sdkjs
+#COPY --from=web-apps /web-apps /var/www/onlyoffice/documentserver/web-apps
+#COPY --from=web-apps /web-apps/deploy/web-apps /var/www/onlyoffice/documentserver/web-apps
 
 # COPY ./onlyoffice.github.io/sdkjs-plugins /sdkjs-plugins
 
