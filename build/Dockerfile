@@ -63,6 +63,7 @@ EOF
 FROM base AS web-apps 
 
 RUN --mount=type=bind,source=./web-apps,target=/temp,rw <<EOF
+export PRODUCT_VERSION="9.2.0"
 cd /temp/build
 ./sprites.sh
 npm install
