@@ -7,10 +7,11 @@ Docker image where we are experimenting with building the OnlyOffice Document Se
 First, clone the repositories for the core-fonts, sdkjs, web-apps, and server components:
 
 ```sh
-$ git clone https://github.com/Euro-Office/core-fonts.git
-$ git clone https://github.com/Euro-Office/sdkjs.git
-$ git clone https://github.com/Euro-Office/web-apps.git
-$ git clone https://github.com/Euro-Office/server.git
+git clone https://github.com/Euro-Office/server.git
+git clone https://github.com/Euro-Office/core-fonts.git
+git clone https://github.com/Euro-Office/sdkjs.git
+git clone https://github.com/Euro-Office/web-apps.git
+git clone https://github.com/Euro-Office/server.git
 ```
 
 Then, you can build the full image by running:
@@ -24,6 +25,26 @@ If you only want to build one of the components, you can specify the respective 
 ```sh
 $ docker buildx build . -t euro-office/documentserver:latest --target sdkjs
 ```
+
+## Development environment
+
+The docker compose environemnt in this directory allows to run document server built from our code base.
+
+```
+docker compose up -d
+```
+
+Currently it requires you to use the container ip address, localhost does not work. You can use the /example endpoint for testing or connect it with the included Nextcloud container.
+
+To not require to rebuild all component and just work on specific areas, you can mount the deploy/ directory of web-apps or sdkjs to the container. That way you can build locally with grunt and have your files deployed in the container directly.
+
+AllFonts.js is missing in sdkjs (still requires some work), the easiest way to get this is:
+
+```
+docker cp onlyoffice:/var/www/onlyoffice/documentserver/sdkjs/common/AllFonts.js /path/to/sdkjs/deploy/sdkjs
+```
+
+
 
 ## Running the Container
 
