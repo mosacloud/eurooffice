@@ -25,6 +25,7 @@ jobs:
           - ONLYOFFICE/document-server-package
           - ONLYOFFICE/document-templates
           - ONLYOFFICE/onlyoffice.github.io
+          - ONLYOFFICE/onlyoffice-nextcloud
           - ONLYOFFICE/sdkjs
           - ONLYOFFICE/sdkjs-forms
           - ONLYOFFICE/server
