@@ -1,10 +1,18 @@
 .PHONY: build-image
 build-image:
-	@docker build -t euro-office/documentserver --target final -f ./Dockerfile ../../
+	@docker build -t euro-office/documentserver --target finalupstream -f ./Dockerfile ../../
 
+DEPLOY ?= deploy/
+
+# Docker target for building specific stages and outputting to deploy directory
 .PHONY: docker-target
 docker-target:
-	@docker build -t euro-office/documentserver --target $(TARGET) -f ./Dockerfile ../../
+	@mkdir -p $(DEPLOY)
+	@if [ -z "$(TARGET)" ]; then \
+		echo "ERROR: TARGET is not set. Usage: make docker-target TARGET=<stage>"; \
+		exit 1; \
+	fi
+	@docker build -t euro-office/documentserver --target $(TARGET) -o $(DEPLOY) -f ./Dockerfile ../../
 
 .PHONY: build
 build:

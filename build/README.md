@@ -41,10 +41,8 @@ To not require to rebuild all component and just work on specific areas, you can
 AllFonts.js is missing in sdkjs (still requires some work), the easiest way to get this is:
 
 ```
-docker cp onlyoffice:/var/www/onlyoffice/documentserver/sdkjs/common/AllFonts.js /path/to/sdkjs/deploy/sdkjs
+DEPLOY=../../sdkjs/deploy/sdkjs TARGET=fonts-output make docker-target
 ```
-
-
 
 ## Running the Container
 

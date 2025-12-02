@@ -45,6 +45,9 @@ RUN	./allfontsgen --input="/build/core-fonts" \
 		--output-web="/build/deploy" \
 		--selection="/build/deploy/font_selection.bin"
 
+FROM scratch AS fonts-output
+
+COPY --from=fonts /build/deploy/AllFonts-web.js /AllFonts.js
 
 #### BUILD SDKJS COMPONENT ####
 FROM base AS sdkjs
