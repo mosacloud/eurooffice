@@ -129,6 +129,8 @@ COPY --from=fonts /build/core-fonts /var/www/onlyoffice/documentserver/core-font
 COPY --from=sdkjs /sdkjs /var/www/onlyoffice/documentserver/sdkjs
 COPY --from=web-apps /web-apps /var/www/onlyoffice/documentserver/web-apps
 
+RUN sed 's,autostart=false,autostart=true,' -i /etc/supervisor/conf.d/ds-example.conf
+
 # COPY ./onlyoffice.github.io/sdkjs-plugins /sdkjs-plugins
 
 
