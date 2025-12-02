@@ -7,8 +7,8 @@ FROM ubuntu AS core
 RUN apt update && apt install -y build-essential cmake ninja-build git
 
 RUN --mount=type=bind,source=./core,target=/core,rw <<EOF
-cd /core/X2tConverter/build/cmake
-cmake -G Ninja
+mkdir /build
+cmake -G Ninja /core/X2tConverter/build/cmake
 cmake --build .
 EOF
 
