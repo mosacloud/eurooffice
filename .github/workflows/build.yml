@@ -19,21 +19,8 @@ env:
   CHECKOUT_REF: ${{ github.event.inputs.ref || 'master' }}
 
 jobs:
-  build:
+  clone:
     runs-on: self-hosted
-    permissions:
-      contents: read
-      packages: write
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          # - core
-          - sdkjs
-          - web-apps
-          - server
-          - fonts
-
     steps:
       - name: Checkout fork repository
         uses: actions/checkout@v4
@@ -43,7 +30,6 @@ jobs:
 
       - name: Checkout core
         uses: actions/checkout@v4
-        if: matrix.target == 'core'
         with:
           repository: euro-office/core
           path: core/
@@ -69,7 +55,6 @@ jobs:
 
       - name: Checkout sdkjs
         uses: actions/checkout@v4
-        if: matrix.target != 'core'
         with:
           repository: euro-office/sdkjs
           path: sdkjs/
@@ -78,7 +63,6 @@ jobs:
 
       - name: Checkout web-apps
         uses: actions/checkout@v4
-        if: matrix.target != 'core'
         with:
           repository: euro-office/web-apps
           path: web-apps/
@@ -87,12 +71,40 @@ jobs:
 
       - name: Checkout server
         uses: actions/checkout@v4
-        if: matrix.target != 'core'
         with:
           repository: euro-office/server
           path: server/
           ref: ${{ env.CHECKOUT_REF }}
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+
+      - name: Cache clones
+        uses: actions/cache@v4
+        with:
+          path: "${{ github.workspace }}"
+          key: ${{ runner.os }}-build-${{ github.sha }}
+
+  build:
+    runs-on: self-hosted
+    needs: clone
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          # - core
+          - sdkjs
+          - web-apps
+          - server
+          - fonts
+
+    steps:
+      - name: Restore cache
+        uses: actions/cache/restore@v4
+        with:
+          path: "${{ github.workspace }}"
+          key: ${{ runner.os }}-build-${{ github.sha }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -133,10 +145,11 @@ jobs:
       contents: read
       packages: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Restore cache
+        uses: actions/cache/restore@v4
         with:
-          submodules: recursive
+          path: "${{ github.workspace }}"
+          key: ${{ runner.os }}-build-${{ github.sha }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -162,7 +175,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./build/Dockerfile
+          file: ./fork/build/Dockerfile
           target: finalupstream
           push: true
           tags: ${{ steps.meta.outputs.tags }}
