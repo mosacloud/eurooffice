@@ -34,7 +34,7 @@ RUN --mount=type=bind,source=./core,target=/core,rw <<EOF
 cd /core
 mkdir build
 cd build
-cmake -j $(nproc) -G Ninja /core/X2tConverter/build/cmake
+cmake -G Ninja /core/X2tConverter/build/cmake
 cmake --build -j $(nproc) .
 
 # Collect all the shared libs into the package directory

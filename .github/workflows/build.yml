@@ -24,18 +24,19 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout fork repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           path: fork/
 
       - name: Checkout core
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: euro-office/core
           path: core/
           ref: ${{ env.CHECKOUT_REF }}
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+          fetch-depth: 0
 
       - name: Cherry-pick x2t build changes
         run: |
@@ -45,13 +46,15 @@ jobs:
             exit 0
           fi
 
-          git fetch origin private/tbari/cmake-linux-build
-          git cherry-pick @..origin/private/tbari/cmake-linux-build
+          git config --global user.email "no-reply@euro-office.org"
+          git config --global user.name "eo-bot"
+          git cherry-pick HEAD..origin/private/tbari/cmake-linux-build
+          rm -r .git/
         env:
           GITHUB_TOKEN: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
 
       - name: Checkout core-fonts
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: euro-office/core-fonts
           path: core-fonts/
@@ -59,7 +62,7 @@ jobs:
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
 
       - name: Checkout sdkjs-plugins
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         if: false
         with:
           repository: euro-office/onlyoffice.github.io
@@ -68,7 +71,7 @@ jobs:
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
 
       - name: Checkout sdkjs
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: euro-office/sdkjs
           path: sdkjs/
@@ -76,7 +79,7 @@ jobs:
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
 
       - name: Checkout web-apps
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: euro-office/web-apps
           path: web-apps/
@@ -84,7 +87,7 @@ jobs:
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
 
       - name: Checkout server
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: euro-office/server
           path: server/
@@ -139,7 +142,7 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
             type=sha,prefix={{branch}}-${{ matrix.target }}-
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ matrix.target }}-stage
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -194,10 +197,10 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from:
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:core-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sdkjs-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:web-apps-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:server-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:fonts-buildcache
+          cache-from: |
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:core-stage
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sdkjs-stage
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:web-apps-stage
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:server-stage
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:fonts-stage
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
