@@ -34,8 +34,21 @@ jobs:
         with:
           repository: euro-office/core
           path: core/
-          ref: private/tbari/cmake-linux-build
+          ref: ${{ env.CHECKOUT_REF }}
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+
+      - name: Cherry-pick x2t build changes
+        run: |
+          cd core/
+          if [ -f common.cmake ]; then
+            echo "common.cmake found — skipping x2t cherry-pick"
+            exit 0
+          fi
+
+          git fetch origin private/tbari/cmake-linux-build
+          git cherry-pick @..origin/private/tbari/cmake-linux-build
+        env:
+          GITHUB_TOKEN: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
 
       - name: Checkout core-fonts
         uses: actions/checkout@v4
