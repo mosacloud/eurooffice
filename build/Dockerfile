@@ -4,12 +4,46 @@ FROM onlyoffice/documentserver:latest AS upstream
 
 FROM ubuntu AS core
 
-RUN apt update && apt install -y build-essential cmake ninja-build git
+ENV TZ=Etc/UTC
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+RUN apt -y update && \
+    apt -y upgrade && \
+    apt -y install \
+                git \
+                curl \
+                sudo \
+                wget \
+                ssh \
+                build-essential \
+                make \
+                cmake \
+                ninja-build \
+                pkg-config \
+                libglib2.0-dev \
+                python3 \
+                python-is-python3 \
+                lsb-release \
+                libboost-all-dev \
+                && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN --mount=type=bind,source=./core,target=/core,rw <<EOF
+cd /core
+git checkout private/tbari/cmake-linux-build
+cd /
 mkdir /build
+cd /build
 cmake -G Ninja /core/X2tConverter/build/cmake
 cmake --build .
+
+# Collect all the shared libs into the package directory
+mkdir package
+cp ./x2t package/x2t
+for lib in $(find . -name "*.so"); do cp $lib package/; done
+cp /core/Common/3dParty/icu/install_linux_x64/lib/*.so* package/
 EOF
 
 # Debian 13 as the base image for building our components
