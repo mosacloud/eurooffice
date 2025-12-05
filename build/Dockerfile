@@ -33,9 +33,8 @@ RUN apt -y update && \
 RUN --mount=type=bind,source=./core,target=/core,rw <<EOF
 cd /core
 git checkout private/tbari/cmake-linux-build
-cd /
-mkdir /build
-cd /build
+mkdir build
+cd build
 cmake -G Ninja /core/X2tConverter/build/cmake
 cmake --build .
 
