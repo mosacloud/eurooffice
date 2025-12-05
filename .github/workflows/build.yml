@@ -5,6 +5,7 @@ on:
     branches:
       - build/document-server-custom
       - build/elzody/docker
+      - private/tbari/build_x2t
   workflow_dispatch:
     inputs:
       ref:
