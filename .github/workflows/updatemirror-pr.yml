@@ -1,0 +1,62 @@
+name: Pull requests to pull branches from develop branch in the fork branch
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron:  '0 9 * * *'
+  push:
+    branches:
+      - ci/pr
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    strategy:
+      fail-fast: false
+      matrix:
+        repo:
+          - ONLYOFFICE/web-apps
+          - ONLYOFFICE/core-fonts
+          - ONLYOFFICE/core
+          - ONLYOFFICE/server
+          - ONLYOFFICE/sdkjs
+
+    steps:
+    - name: Get repo name as output by splitting matrix.repo
+      id: repo_name
+      run: |
+        IFS='/' read -r owner repo <<< "${{ matrix.repo }}"
+        echo "repo=${repo}" >> $GITHUB_OUTPUT
+        echo "upstream_branch=master" >> $GITHUB_OUTPUT
+    - name: Checkout runner workspace
+      uses: actions/checkout@v3
+      with:
+        repository: "Euro-Office/${{ steps.repo_name.outputs.repo }}"
+        token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+        ref: fork
+    - name: Create branch for pull request to pull branches from ${{ steps.repo_name.outputs.upstream_branch }} branch in the fork branch
+      run: |
+        git config --global user.name "Euro-Office via GitHub Actions"
+        git remote add upstream https://github.com/${{ matrix.repo }}.git
+        git fetch upstream ${{ steps.repo_name.outputs.upstream_branch }}
+        git fetch origin update-from-${{ steps.repo_name.outputs.upstream_branch }} || true
+
+        git checkout -B update-from-${{ steps.repo_name.outputs.upstream_branch }} origin/update-from-${{ steps.repo_name.outputs.upstream_branch }} || git checkout -B update-from-${{ steps.repo_name.outputs.upstream_branch }}
+
+        current_commit=$(git rev-parse HEAD)
+
+        git merge --no-commit upstream/${{ steps.repo_name.outputs.upstream_branch }}
+        git push origin update-from-${{ steps.repo_name.outputs.upstream_branch }} --force-with-lease
+
+        new_diff=$(git log $current_commit..HEAD)
+
+        gh pr create \
+          --repo "Euro-Office/${{ steps.repo_name.outputs.repo }}" \
+          --head update-from-${{ steps.repo_name.outputs.upstream_branch }} \
+          --base fork \
+          --title "Update from ${{ steps.repo_name.outputs.upstream_branch }} branch in upstream repository" \
+          --body "This pull request updates the fork branch with changes from the ${{ steps.repo_name.outputs.upstream_branch }} branch in the upstream repository." || true
+      env:
+        GITHUB_TOKEN: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}        
+
