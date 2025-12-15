@@ -1,4 +1,3 @@
-####################################################################################
 # Bring in the upstream OnlyOffice Document Server image so that
 # we can extract things from it later
 FROM onlyoffice/documentserver:latest AS upstream
