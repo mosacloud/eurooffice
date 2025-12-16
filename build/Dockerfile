@@ -2,150 +2,134 @@
 # we can extract things from it later
 FROM onlyoffice/documentserver:latest AS upstream
 
-FROM ubuntu AS core
 
-ENV TZ=Etc/UTC
-ENV DEBIAN_FRONTEND=noninteractive
 
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-
-RUN apt -y update && \
-    apt -y upgrade && \
-    apt -y install \
-                git \
-                curl \
-                sudo \
-                wget \
-                ssh \
-                build-essential \
-                make \
-                cmake \
-                ninja-build \
-                pkg-config \
-                libglib2.0-dev \
-                python3 \
-                python-is-python3 \
-                lsb-release \
-                libboost-all-dev \
-                && \
-    rm -rf /var/lib/apt/lists/*
-
-RUN --mount=type=bind,source=./core,target=/core,rw <<EOF
-cd /core
-mkdir build
-cd build
-cmake -G Ninja /core/X2tConverter/build/cmake
-cmake --build -j $(nproc) .
-
-# Collect all the shared libs into the package directory
-mkdir package
-cp ./x2t package/x2t
-for lib in $(find . -name "*.so"); do cp $lib package/; done
-cp /core/Common/3dParty/icu/install_linux_x64/lib/*.so* package/
-EOF
-
-# Debian 13 as the base image for building our components
+#### BASE ####
 FROM debian:trixie AS base
-
-# Install base dependencies needed for all components
-RUN <<EOF
-apt update
-apt install -y nodejs npm openjdk-21-jdk wget zip brotli
-
-npm install -g @yao-pkg/pkg grunt-cli
-EOF
+    RUN apt update && \
+        apt install -y nodejs npm openjdk-21-jdk wget zip brotli && \
+        npm install -g @yao-pkg/pkg grunt-cli
 
 
-#### BUILD FONTS ####
+
+#### CORE ####
+FROM ubuntu AS core
+    ENV TZ=Etc/UTC
+    ENV DEBIAN_FRONTEND=noninteractive
+
+    RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
+        apt -y update && \
+        apt -y upgrade && \
+        apt -y install \
+                    git \
+                    curl \
+                    sudo \
+                    wget \
+                    ssh \
+                    build-essential \
+                    make \
+                    cmake \
+                    ninja-build \
+                    pkg-config \
+                    libglib2.0-dev \
+                    python3 \
+                    python-is-python3 \
+                    lsb-release \
+                    libboost-all-dev \
+                    && \
+        rm -rf /var/lib/apt/lists/*
+
+    RUN --mount=type=bind,source=./core,target=/core,rw \
+        cd /core && \
+        mkdir build && \
+        cd build && \
+        cmake -G Ninja /core/X2tConverter/build/cmake && \
+        cmake --build -j $(nproc) . && \
+        mkdir package && \
+        cp ./x2t package/x2t && \
+        for lib in $(find . -name "*.so"); do cp $lib package/; done && \
+        cp /core/Common/3dParty/icu/install_linux_x64/lib/*.so* package/
+
+
+
+#### FONTS ####
 # We may not need this build step in the end as it can be
 # generated on the fly on the document server using
 # /usr/bin/documentserver-generate-allfonts.sh
-FROM base AS fonts
+FROM base AS build-fonts
+    WORKDIR /build
 
-WORKDIR /build
+    COPY --from=upstream /var/www/onlyoffice/documentserver/server/FileConverter/bin/* /build/
+    COPY --from=upstream /var/www/onlyoffice/documentserver/server/tools/allfontsgen /build/
+    RUN mkdir -p /build/deploy /build/core-fonts
 
-COPY --from=upstream /var/www/onlyoffice/documentserver/server/FileConverter/bin/* /build/
-COPY --from=upstream /var/www/onlyoffice/documentserver/server/tools/allfontsgen /build/
-RUN mkdir -p /build/deploy /build/core-fonts
+    RUN --mount=type=bind,source=core-fonts,target=/build/core-fonts \
+        ./allfontsgen --input="/build/core-fonts" \
+		    --allfonts-web="/build/deploy/AllFonts-web.js" \
+		    --allfonts="/build/deploy/AllFonts.js" \
+		    --images="/build/deploy" \
+		    --output-web="/build/deploy" \
+		    --selection="/build/deploy/font_selection.bin"
 
-COPY ./core-fonts /build/core-fonts
-# RUN --mount=type=bind,source=core-fonts,target=/build/core-fonts \
-RUN	./allfontsgen --input="/build/core-fonts" \
-		--allfonts-web="/build/deploy/AllFonts-web.js" \
-		--allfonts="/build/deploy/AllFonts.js" \
-		--images="/build/deploy" \
-		--output-web="/build/deploy" \
-		--selection="/build/deploy/font_selection.bin"
-
-FROM scratch AS fonts-output
-
-COPY --from=fonts /build/deploy/AllFonts-web.js /AllFonts.js
-
-#### BUILD SDKJS COMPONENT ####
-FROM base AS sdkjs
-
-RUN --mount=type=bind,source=./sdkjs,target=/temp,rw <<EOF
-cd /temp/build
-npm install
-grunt
-
-# The built files need to be accessible in other layers
-cp -r /temp/deploy/sdkjs /sdkjs
-EOF
+FROM scratch AS fonts
+    COPY --from=build-fonts /build/deploy/AllFonts-web.js /AllFonts.js
 
 
-#### BUILD WEB-APPS COMPONENT ####
-FROM base AS web-apps 
 
-RUN --mount=type=bind,source=./web-apps,target=/temp,rw <<EOF
-export PRODUCT_VERSION="9.2.0"
-cd /temp/build
-./sprites.sh
-npm install
-grunt
+#### SDKJS ####
+FROM base AS build-sdkjs
+    RUN --mount=type=bind,source=./sdkjs,target=/temp,rw \
+        cd /temp/build && \
+        npm install && \
+        grunt && \
+        cp -r /temp/deploy/sdkjs /sdkjs
 
-# The built files need to be accessible in other layers
-cp -r /temp/deploy/web-apps /web-apps
-EOF
+FROM scratch AS sdkjs
+    COPY --from=build-sdkjs /sdkjs /sdkjs
 
 
-#### BUILD SERVER COMPONENT ####
-FROM base AS server
 
-# Common
-RUN --mount=type=bind,source=./server,target=/server,rw <<EOF
-cd /server/Common
-npm install
-EOF
+#### WEB-APPS ####
+FROM base AS build-web-apps 
+    RUN --mount=type=bind,source=./web-apps,target=/temp,rw \
+        export PRODUCT_VERSION="9.2.0" && \
+        cd /temp/build && \
+        npm install && \
+        grunt && \
+        cp -r /temp/deploy/web-apps /web-apps
 
-# DocService
-RUN --mount=type=bind,source=./server,target=/server,rw <<EOF
-cd /server/DocService
-npm install
-pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/build/docservice
-EOF
+FROM scratch AS web-apps
+    COPY --from=build-web-apps /web-apps /web-apps
 
-# FileConverter
-# TODO: This component requires x2t at runtime in order to work fully
-RUN --mount=type=bind,source=./server,target=/server,rw <<EOF
-cd /server/FileConverter
-npm install
-pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/build/fileconverter
-EOF
 
-# Metrics
-RUN --mount=type=bind,source=./server,target=/server,rw <<EOF
-cd /server/Metrics
-npm install
-pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/build/metrics
-EOF
 
-# AdminPanel
-RUN --mount=type=bind,source=./server,target=/server,rw <<EOF
-cd /server/AdminPanel/server
-npm install
-pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/build/adminpanel
-EOF
+#### SERVER ####
+FROM base AS build-server
+    RUN --mount=type=bind,source=./server,target=/temp,rw \
+        mkdir /server && \
+        cd /temp/Common && \
+        npm install && \
+        #### DOCSERVICE ####
+        cd /temp/DocService && \
+        npm install && \
+        pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/docservice && \
+        #### FILECONVERTER ####
+        cd /temp/FileConverter && \
+        npm install && \
+        pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/fileconverter && \
+        #### METRICS ####
+        cd /temp/Metrics && \
+        npm install && \
+        pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/metrics && \
+        #### ADMINPANEL ####
+        cd /temp/AdminPanel/server && \
+        npm install && \
+        pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/adminpanel
+
+FROM scratch AS server
+    COPY --from=build-server /server /server
+
+
 
 #### FINAL UPSTREAM IMAGE ####
 # This image is based on the upstream OnlyOffice Document Server image
