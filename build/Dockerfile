@@ -39,7 +39,7 @@ FROM ubuntu AS core
                     lsb-release \
                     libboost-all-dev \
                     && \
-        rm -rf /var/lib/apt/lists/*
+        rm -rf /var/lib/apt-get/lists/*
 
     RUN --mount=type=bind,source=./core,target=/core,rw <<EOF
         mkdir -p /tmp/core_build
