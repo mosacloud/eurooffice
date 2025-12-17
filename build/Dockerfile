@@ -192,14 +192,14 @@ EOF
     COPY --from=web-apps /web-apps /web-apps
     COPY --from=server /server /server
 
-# Set up core binaries
-RUN <<EOF
-    mkdir -p /server/tools
-    ln -s /core/allfontsgen /server/tools/allfontsgen
-    ln -s /core/allthemes /server/tools/allthemes
-    ln -s /core/docbuilder /server/tools/docbuilder
-    ln -s /core/pluginsmanager /server/tools/pluginsmanager
-    ln -s /core/x2t /server/tools/x2t
+    # Set up core binaries
+    RUN <<EOF
+        mkdir -p /server/tools
+        ln -s /core/allfontsgen /server/tools/allfontsgen
+        ln -s /core/allthemes /server/tools/allthemes
+        ln -s /core/docbuilder /server/tools/docbuilder
+        ln -s /core/pluginsmanager /server/tools/pluginsmanager
+        ln -s /core/x2t /server/tools/x2t
 EOF
 
     # Run the docservice binary as the container's entrypoint
