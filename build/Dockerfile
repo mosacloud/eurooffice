@@ -42,12 +42,13 @@ FROM ubuntu AS core
         rm -rf /var/lib/apt-get/lists/*
 
     RUN --mount=type=bind,source=./core,target=/core,rw <<EOF
-        git clone /core /core_repo
-        cd /core_repo
-        git checkout private/tbari/cmake-linux-build
+        cd /core
+        git config --global --add safe.directory /core
+        git clean -xfd
+        git reset --hard
         mkdir -p /tmp/core_build
         cd /tmp/core_build
-        cmake -GNinja -DEO_CORE_OUTPUT_DIR=/core_binaries /core_repo
+        cmake -GNinja -DEO_CORE_OUTPUT_DIR=/core_binaries /core
         cmake --build .
 EOF
 
