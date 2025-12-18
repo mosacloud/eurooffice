@@ -13,7 +13,7 @@ FROM debian:trixie AS base
 
 
 #### CORE ####
-FROM ubuntu@sha256:c35e29c9450151419d9448b0fd75374fec4fff364a27f176fb458d472dfc9e54 AS core
+FROM ubuntu AS core
 
     ENV TZ=Etc/UTC
     ENV DEBIAN_FRONTEND=noninteractive
@@ -42,10 +42,6 @@ FROM ubuntu@sha256:c35e29c9450151419d9448b0fd75374fec4fff364a27f176fb458d472dfc9
         rm -rf /var/lib/apt-get/lists/*
 
     RUN --mount=type=bind,source=./core,target=/core,rw <<EOF
-        cd /core
-        git config --global --add safe.directory /core
-        git clean -xfd
-        git reset --hard
         mkdir -p /tmp/core_build
         cd /tmp/core_build
         cmake -GNinja -DEO_CORE_OUTPUT_DIR=/core_binaries /core
