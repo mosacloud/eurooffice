@@ -7,7 +7,9 @@ services:
       context: ../../
       dockerfile: ./fork/build/Dockerfile
       target: finalupstream
-    container_name: eo 
+      args:
+        PRODUCT_VERSION: 9.4.0
+    container_name: eo
     ports:
       - "8080:80"
     environment:

@@ -90,15 +90,19 @@ FROM scratch AS sdkjs
 
 
 #### WEB-APPS ####
-FROM base AS build-web-apps 
+FROM base AS build-web-apps
+    ARG PRODUCT_VERSION
+
     RUN --mount=type=bind,source=./web-apps,target=/temp,rw \
-        export PRODUCT_VERSION="9.2.0" && \
+        export PRODUCT_VERSION=$PRODUCT_VERSION && \
         cd /temp/build && \
         npm install && \
         grunt && \
         cp -r /temp/deploy/web-apps /web-apps
 
 FROM scratch AS web-apps
+    ARG PRODUCT_VERSION
+    
     COPY --from=build-web-apps /web-apps /web-apps
 
 
@@ -141,17 +145,18 @@ FROM scratch AS server
 # PostgreSQL, Redis, RabbitMQ
 
 FROM upstream AS finalupstream
+    ARG PRODUCT_VERSION
 
-COPY --from=fonts /build/deploy/AllFonts-web.js /var/www/onlyoffice/documentserver/sdkjs/common/AllFonts.js
-COPY --from=fonts /build/deploy/AllFonts.js /var/www/onlyoffice/documentserver/server/FileConverter/bin/AllFonts.js
-COPY --from=fonts /build/core-fonts /var/www/onlyoffice/documentserver/core-fonts
+    COPY --from=fonts /build/deploy/AllFonts-web.js /var/www/onlyoffice/documentserver/sdkjs/common/AllFonts.js
+    COPY --from=fonts /build/deploy/AllFonts.js /var/www/onlyoffice/documentserver/server/FileConverter/bin/AllFonts.js
+    COPY --from=fonts /build/core-fonts /var/www/onlyoffice/documentserver/core-fonts
 
-COPY --from=sdkjs /sdkjs /var/www/onlyoffice/documentserver/sdkjs
-COPY --from=web-apps /web-apps /var/www/onlyoffice/documentserver/web-apps
+    COPY --from=sdkjs /sdkjs /var/www/onlyoffice/documentserver/sdkjs
+    COPY --from=web-apps /web-apps /var/www/onlyoffice/documentserver/web-apps
 
-COPY --from=core /core/build/package/* /var/www/onlyoffice/documentserver/server/FileConverter/bin/
+    COPY --from=core /core/build/package/* /var/www/onlyoffice/documentserver/server/FileConverter/bin/
 
-RUN sed 's,autostart=false,autostart=true,' -i /etc/supervisor/conf.d/ds-example.conf
+    RUN sed 's,autostart=false,autostart=true,' -i /etc/supervisor/conf.d/ds-example.conf
 
 # COPY ./onlyoffice.github.io/sdkjs-plugins /sdkjs-plugins
 
