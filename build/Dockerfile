@@ -14,7 +14,6 @@ FROM debian:trixie AS base
 
 #### CORE ####
 FROM ubuntu AS core
-
     ENV TZ=Etc/UTC
     ENV DEBIAN_FRONTEND=noninteractive
     ENV PLEASE_PRELOAD_LIBSTDCPP=true
