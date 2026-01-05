@@ -2,22 +2,18 @@ name: Build and Push Docker Image
 
 on:
   push:
-    branches:
-      - build/document-server-custom
-      - build/elzody/docker
-      - private/tbari/build_x2t
   workflow_dispatch:
     inputs:
       ref:
         description: 'Branch or tag to checkout for repositories'
         required: false
-        default: 'master'
+        default: 'fork'
         type: string
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: euro-office/documentserver
-  CHECKOUT_REF: ${{ github.event.inputs.ref || 'master' }}
+  CHECKOUT_REF: ${{ github.event.inputs.ref || 'fork' }}
 
 jobs:
   clone:
@@ -37,21 +33,6 @@ jobs:
           ref: ${{ env.CHECKOUT_REF }}
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
           fetch-depth: 0
-
-      - name: Cherry-pick x2t build changes
-        run: |
-          cd core/
-          if [ -f common.cmake ]; then
-            echo "common.cmake found — skipping x2t cherry-pick"
-            exit 0
-          fi
-
-          git config --global user.email "no-reply@euro-office.org"
-          git config --global user.name "eo-bot"
-          git cherry-pick HEAD..origin/private/tbari/cmake-linux-build
-          rm -r .git/
-        env:
-          GITHUB_TOKEN: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
 
       - name: Checkout core-fonts
         uses: actions/checkout@v6
