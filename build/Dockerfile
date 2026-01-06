@@ -16,11 +16,12 @@ FROM debian:trixie AS base
 FROM ubuntu AS core
     ENV TZ=Etc/UTC
     ENV DEBIAN_FRONTEND=noninteractive
+    ENV PLEASE_PRELOAD_LIBSTDCPP=true
 
     RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
-        apt -y update && \
-        apt -y upgrade && \
-        apt -y install \
+        apt-get -y update && \
+        apt-get -y upgrade && \
+        apt-get -y install \
                     git \
                     curl \
                     sudo \
@@ -37,18 +38,14 @@ FROM ubuntu AS core
                     lsb-release \
                     libboost-all-dev \
                     && \
-        rm -rf /var/lib/apt/lists/*
+        rm -rf /var/lib/apt-get/lists/*
 
-    RUN --mount=type=bind,source=./core,target=/core,rw \
-        cd /core && \
-        mkdir build && \
-        cd build && \
-        cmake -G Ninja /core/X2tConverter/build/cmake && \
-        cmake --build -j $(nproc) . && \
-        mkdir package && \
-        cp ./x2t package/x2t && \
-        for lib in $(find . -name "*.so"); do cp $lib package/; done && \
-        cp /core/Common/3dParty/icu/install_linux_x64/lib/*.so* package/
+    RUN --mount=type=bind,source=./core,target=/core,rw <<EOF
+        mkdir -p /tmp/core_build
+        cd /tmp/core_build
+        cmake -GNinja -DEO_CORE_OUTPUT_DIR=/core_binaries /core
+        cmake --build .
+EOF
 
 
 
@@ -60,7 +57,12 @@ FROM base AS build-fonts
     WORKDIR /build
 
     COPY --from=upstream /var/www/onlyoffice/documentserver/server/FileConverter/bin/* /build/
-    COPY --from=upstream /var/www/onlyoffice/documentserver/server/tools/allfontsgen /build/
+
+    COPY --from=core /core_binaries /core
+    RUN <<EOF
+        ln -s /core/allfontsgen /build/allfontsgen
+EOF
+
     RUN mkdir -p /build/deploy /build/core-fonts
 
     RUN --mount=type=bind,source=core-fonts,target=/build/core-fonts \
@@ -72,7 +74,9 @@ FROM base AS build-fonts
 		    --selection="/build/deploy/font_selection.bin"
 
 FROM scratch AS fonts
-    COPY --from=build-fonts /build/deploy/AllFonts-web.js /AllFonts.js
+    COPY --from=build-fonts /build/deploy/AllFonts.js /AllFonts.js
+    COPY --from=build-fonts /build/deploy/AllFonts-web.js /AllFonts-web.js
+    COPY --from=build-fonts /build/core-fonts /core-fonts
 
 
 
@@ -128,7 +132,10 @@ FROM base AS build-server
         #### ADMINPANEL ####
         cd /temp/AdminPanel/server && \
         npm install && \
-        pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/adminpanel
+        pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/adminpanel && \
+        #### CONFIG ####
+        cp -rP /temp/Common/config /server/config
+
 
 FROM scratch AS server
     COPY --from=build-server /server /server
@@ -147,54 +154,57 @@ FROM scratch AS server
 FROM upstream AS finalupstream
     ARG PRODUCT_VERSION
 
-    COPY --from=fonts /build/deploy/AllFonts-web.js /var/www/onlyoffice/documentserver/sdkjs/common/AllFonts.js
-    COPY --from=fonts /build/deploy/AllFonts.js /var/www/onlyoffice/documentserver/server/FileConverter/bin/AllFonts.js
-    COPY --from=fonts /build/core-fonts /var/www/onlyoffice/documentserver/core-fonts
+    COPY --from=fonts /AllFonts-web.js /var/www/onlyoffice/documentserver/sdkjs/common/AllFonts.js
+    COPY --from=fonts /AllFonts.js /var/www/onlyoffice/documentserver/server/FileConverter/bin/AllFonts.js
+    COPY --from=fonts /core-fonts /var/www/onlyoffice/documentserver/core-fonts
 
     COPY --from=sdkjs /sdkjs /var/www/onlyoffice/documentserver/sdkjs
     COPY --from=web-apps /web-apps /var/www/onlyoffice/documentserver/web-apps
 
-    COPY --from=core /core/build/package/* /var/www/onlyoffice/documentserver/server/FileConverter/bin/
+    COPY --from=core /core_binaries/* /var/www/onlyoffice/documentserver/server/FileConverter/bin/
 
     RUN sed 's,autostart=false,autostart=true,' -i /etc/supervisor/conf.d/ds-example.conf
 
-# COPY ./onlyoffice.github.io/sdkjs-plugins /sdkjs-plugins
+    # COPY ./onlyoffice.github.io/sdkjs-plugins /sdkjs-plugins
 
 
 #### FINAL ####
 # Debian 13 for the final image
 FROM debian:trixie AS final
 
-RUN <<EOF
-apt update
-apt install -y nodejs npm
+    RUN <<EOF
+        apt update
+        apt install -y nodejs npm
 
-npm install -g cross-env@5.1.2
+        npm install -g cross-env@5.1.2
 
-# Make an empty sdkjs plugins directory for now
-mkdir /sdkjs-plugins
+        # Make an empty sdkjs plugins directory for now
+        mkdir /sdkjs-plugins
 EOF
 
-# https://github.com/ONLYOFFICE/build_tools/blob/cc24ee8e85be9890a77ae014bfc37aecf5209f33/scripts/deploy_server.py#L130-L142
-COPY ./onlyoffice.github.io/sdkjs-plugins /sdkjs-plugins
+    # https://github.com/ONLYOFFICE/build_tools/blob/cc24ee8e85be9890a77ae014bfc37aecf5209f33/scripts/deploy_server.py#L130-L142
+    COPY ./onlyoffice.github.io/sdkjs-plugins /sdkjs-plugins
 
-# Copy each built component into the final image
-COPY --from=sdkjs /sdkjs/deploy/sdkjs /sdkjs
-COPY --from=web-apps /web-apps/deploy/web-apps /web-apps
-COPY --from=server /server/build/* /server/
+    # Copy each built component into the final image
+    COPY --from=core /core_binaries /core
+    COPY --from=sdkjs /sdkjs /sdkjs
+    COPY --from=web-apps /web-apps /web-apps
+    COPY --from=server /server /server
 
-# Copy the configuration files from the server component
-COPY --from=server /server/Common/config /server/config
+    # Set up core binaries
+    RUN <<EOF
+        mkdir -p /server/tools
+        ln -s /core/allfontsgen /server/tools/allfontsgen
+        ln -s /core/allthemes /server/tools/allthemes
+        ln -s /core/docbuilder /server/tools/docbuilder
+        ln -s /core/pluginsmanager /server/tools/pluginsmanager
+        ln -s /core/x2t /server/tools/x2t
+EOF
 
-# Copy over tool components from the upstream image
-COPY --from=upstream /var/www/onlyoffice/documentserver/server/tools/allfontsgen /server/tools/allfontsgen
-COPY --from=upstream /var/www/onlyoffice/documentserver/server/tools/allthemesgen /server/tools/allthemesgen
-COPY --from=upstream /var/www/onlyoffice/documentserver/server/tools/pluginsmanager /server/tools/pluginsmanager
-
-# Run the docservice binary as the container's entrypoint
-ENTRYPOINT [ "npx", "cross-env", "NODE_ENV=development-linux", "NODE_CONFIG_DIR=/server/config", "/server/docservice" ]
+    # Run the docservice binary as the container's entrypoint
+    ENTRYPOINT [ "npx", "cross-env", "NODE_ENV=development-linux", "NODE_CONFIG_DIR=/server/config", "/server/docservice" ]
 
 
-#COPY --from=build-fonts /build/deploy/AllFonts-web.js /var/www/onlyoffice/documentserver/sdkjs/common/AllFonts.js
-#COPY --from=build-fonts /build/deploy/AllFonts.js /var/www/onlyoffice/documentserver/server/FileConverter/bin/AllFonts.js
-#COPY --exclude=.git core-fonts /var/www/onlyoffice/documentserver/core-fonts
+    # COPY --from=build-fonts /build/deploy/AllFonts-web.js /var/www/onlyoffice/documentserver/sdkjs/common/AllFonts.js
+    # COPY --from=build-fonts /build/deploy/AllFonts.js /var/www/onlyoffice/documentserver/server/FileConverter/bin/AllFonts.js
+    # COPY --exclude=.git core-fonts /var/www/onlyoffice/documentserver/core-fonts
