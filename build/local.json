@@ -1,0 +1,29 @@
+{
+  "log": {
+    "filePath": "/server/config/log4js/development.json"
+  },
+  "rabbitmq": {
+    "url": "amqp://host.docker.internal:5672"
+  },
+  "services": {
+    "CoAuthoring": {
+      "server": {
+        "port": 8000,
+	"static_conent": {
+          "/sdkjs": {
+            "path": "/sdkjs"
+          },
+          "/web-apps": {
+            "path": "/web-apps"
+          },
+          "sdkjs-plugins": {
+            "path": "/sdkjs-plugins"
+          }
+        }
+      },
+      "sql": {
+        "dbHost": "host.docker.internal"
+      }
+    }
+  }
+}
