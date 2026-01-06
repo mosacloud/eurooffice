@@ -101,7 +101,7 @@ FROM base AS build-web-apps
         export PRODUCT_VERSION=$PRODUCT_VERSION && \
         cd /temp/build && \
         npm install && \
-        grunt && \
+        grunt --skip-imagemin && \
         cp -r /temp/deploy/web-apps /web-apps
 
 FROM scratch AS web-apps
