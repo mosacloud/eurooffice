@@ -27,7 +27,6 @@ services:
       - "8081:80"
     volumes:
       - /var/www/html
-      - ./../../onlyoffice-nextcloud:/var/www/html/custom_apps/onlyoffice
     environment:
       NEXTCLOUD_TRUSTED_DOMAINS: 172.18.0.1 
       SQLITE_DATABASE: nextcloud
