@@ -7,23 +7,26 @@ Docker image where we are experimenting with building the OnlyOffice Document Se
 First, clone the repositories for the core-fonts, sdkjs, web-apps, and server components:
 
 ```sh
-git clone https://github.com/Euro-Office/server.git
+git clone https://github.com/Euro-Office/fork.git
+git clone https://github.com/Euro-Office/core.git
 git clone https://github.com/Euro-Office/core-fonts.git
 git clone https://github.com/Euro-Office/sdkjs.git
 git clone https://github.com/Euro-Office/web-apps.git
 git clone https://github.com/Euro-Office/server.git
 ```
 
+
 Then, you can build the full image by running:
 
 ```sh
-$ docker buildx build . -t euro-office/documentserver:latest
+cd fork/build
+docker build -t euro-office/documentserver:latest --build-arg PRODUCT_VERSION=9.2.1 --target finalupstream -f ./Dockerfile ../../
 ```
 
 If you only want to build one of the components, you can specify the respective target:
 
 ```sh
-$ docker buildx build . -t euro-office/documentserver:latest --target sdkjs
+docker build -t euro-office/documentserver:latest --build-arg PRODUCT_VERSION=9.2.1 --target sdkjs -f ./Dockerfile ../../
 ```
 
 ## Development environment

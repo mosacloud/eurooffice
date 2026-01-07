@@ -163,6 +163,11 @@ FROM upstream AS finalupstream
 
     COPY --from=core /core_binaries/* /var/www/onlyoffice/documentserver/server/FileConverter/bin/
 
+    COPY --from=server /server/docservice /var/www/onlyoffice/documentserver/docservice
+    COPY --from=server /server/fileconverter /var/www/onlyoffice/documentserver/server/fileconverter
+    COPY --from=server /server/metrics /var/www/onlyoffice/documentserver/metrics
+    COPY --from=server /server/adminpanel /var/www/onlyoffice/documentserver/adminpanel
+
     RUN sed 's,autostart=false,autostart=true,' -i /etc/supervisor/conf.d/ds-example.conf
 
     # COPY ./onlyoffice.github.io/sdkjs-plugins /sdkjs-plugins
