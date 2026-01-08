@@ -59,3 +59,31 @@ $ docker run --rm \
 ```
 
 **Note:** You also need to be running RabbitMQ and a database server alongside this container.
+
+## Fully isolated Docker build process, still WIP
+
+We have a container called develop, which just adds the development (i.e., build) tooling to the upstream OO container. This lets you build pieces on the fly directly inside the container, saving build time when developing.
+
+This covers the web-apps case; adjust these based on which component you're developing.
+
+- Follow the repo cloning steps at the start of this file
+- In `fork/build`, start the containers with `docker compose up -d`
+- In docker-compose.yml, for the eo service, ensure that `target` is set to `develop`. Inside `volumes`, uncomment the folder mounts for the component you are working on. The first, to the -develop folder, is the one you enter manually to re-run build commands; the others mount the build output folders to the application.
+- If you made changes in the previous step, run `docker compose up -d --force-recreate --build eo`
+
+Using the image:
+
+- It's exposed at `http://localhost:8081/`
+- Install the onlyoffice app with the UI, or via `docker compose exec nextcloud bash` -> `php occ app:install onlyoffice`
+- Configure your instance at `http://localhost:8081/settings/admin/onlyoffice`. My settings follow, but you may need to change these based on your local networking environment
+  - Docs address `http://172.18.0.4/`
+  - Server address for internal requests from ONLYOFFICE Docs `http://172.18.0.1:8081/`
+- Navigate to Files `http://localhost:8081/apps/files/`, create a document, and try to open it
+
+Building changes:
+
+- Enter the container with `docker compose exec eo bash`
+- Run the build steps for your component. For web-apps, these are:
+  - `cd /var/www/onlyoffice/web-apps-develop/build`
+  - `npm install && grunt --skip-imagemin`
+- If you set the paths correctly in docker-compose.yml, the built files will be reflected in the correct path in your app

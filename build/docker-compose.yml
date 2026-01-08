@@ -6,9 +6,8 @@ services:
     build:
       context: ../../
       dockerfile: ./fork/build/Dockerfile
-      target: finalupstream
-      args:
-        PRODUCT_VERSION: 9.4.0
+      # finalupstream for full build, or develop to add build tools to the container
+      target: develop
     container_name: eo
     ports:
       - "8080:80"
@@ -16,10 +15,11 @@ services:
       ALLOW_PRIVATE_IP_ADDRESS: true
       USE_UNAUTHORIZED_STORAGE: true
       JWT_SECRET: secret
-    # volumes:
-    # Those volumes can be used to override built-in web-apps and sdkjs with local versions for development purposes
-    #  - ../web-apps/deploy/web-apps:/var/www/onlyoffice/documentserver/web-apps:ro
-    #  - ../sdkjs/deploy/sdkjs:/var/www/onlyoffice/documentserver/sdkjs:ro
+    volumes:
+    # Those volumes can be used to override built-in components with local versions for development purposes
+      - ../../web-apps:/var/www/onlyoffice/web-apps-develop # dev folder, run builds in here
+      - ../../web-apps/deploy/web-apps:/var/www/onlyoffice/documentserver/web-apps:ro # mounts deployed files to application
+    #  - ../../sdkjs/deploy/sdkjs:/var/www/onlyoffice/documentserver/sdkjs:ro
   nextcloud:
     image: nextcloud:latest
     container_name: nextcloud

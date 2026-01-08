@@ -230,6 +230,9 @@ FROM upstream AS develop
                     && \
         rm -rf /var/lib/apt-get/lists/*
 
+    # hardcoded for now. todo: get from whatever is defined in upstream
+    ENV PRODUCT_VERSION=9.2.1
+
 
 #### FINAL ####
 # Debian 13 for the final image
