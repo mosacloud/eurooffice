@@ -96,6 +96,7 @@ jobs:
           - web-apps
           - server
           - fonts
+          - develop
 
     steps:
       - name: Restore cache
@@ -123,7 +124,7 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
             type=sha,prefix={{branch}}-${{ matrix.target }}-
-            type=raw,value=${{ matrix.target }}-stage
+            type=raw,value=${{ matrix.target }}
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
