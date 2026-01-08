@@ -27,6 +27,7 @@ services:
       - "8081:80"
     volumes:
       - /var/www/html
+      - ./enable-office.sh:/docker-entrypoint-hooks.d/post-installation/enable-office.sh:ro
     environment:
       NEXTCLOUD_TRUSTED_DOMAINS: 172.18.0.1 
       SQLITE_DATABASE: nextcloud
