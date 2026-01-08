@@ -173,6 +173,64 @@ FROM upstream AS finalupstream
     # COPY ./onlyoffice.github.io/sdkjs-plugins /sdkjs-plugins
 
 
+#### attempt one: WEB-APPS DEV HELPER, changes not reflecting in web-apps
+
+FROM base AS build-web-apps-helper
+    ARG PRODUCT_VERSION
+
+    RUN --mount=type=bind,source=./web-apps,target=/temp,rw \
+        export PRODUCT_VERSION=$PRODUCT_VERSION && \
+        cd /temp/build && \
+        npm install && \
+        grunt --skip-imagemin && \
+        cp -r /temp/deploy/web-apps /web-apps
+
+FROM scratch AS web-apps-helper
+    ARG PRODUCT_VERSION
+    
+    COPY --from=build-web-apps-helper /web-apps /web-apps
+
+FROM finalupstream AS refresh-web-apps
+    COPY --from=web-apps-helper /web-apps /var/www/onlyoffice/documentserver/web-apps
+
+
+#### attempt two
+FROM upstream AS develop
+    # the idea is to set up build dependencies in the OO container, so that we can then mount specific components, and run the build steps manually in the container
+
+    # from base step
+    RUN apt update && \
+        apt install -y nodejs npm openjdk-21-jdk wget zip brotli && \
+        npm install -g @yao-pkg/pkg grunt-cli
+    
+    # from core step
+    ENV TZ=Etc/UTC
+    ENV DEBIAN_FRONTEND=noninteractive
+    ENV PLEASE_PRELOAD_LIBSTDCPP=true
+
+    RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
+        apt-get -y update && \
+        apt-get -y upgrade && \
+        apt-get -y install \
+                    git \
+                    curl \
+                    sudo \
+                    wget \
+                    ssh \
+                    build-essential \
+                    make \
+                    cmake \
+                    ninja-build \
+                    pkg-config \
+                    libglib2.0-dev \
+                    python3 \
+                    python-is-python3 \
+                    lsb-release \
+                    libboost-all-dev \
+                    && \
+        rm -rf /var/lib/apt-get/lists/*
+
+
 #### FINAL ####
 # Debian 13 for the final image
 FROM debian:trixie AS final
