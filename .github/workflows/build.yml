@@ -124,7 +124,7 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
             type=sha,prefix={{branch}}-${{ matrix.target }}-
-            type=raw,value=${{ matrix.target }}
+            type=raw,value=${{ matrix.target }}-stage
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -180,9 +180,9 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:core-stage
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sdkjs-stage
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:web-apps-stage
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:server-stage
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:fonts-stage
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:core-buildcache
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sdkjs-buildcache
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:web-apps-buildcache
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:server-buildcache
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:fonts-buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
