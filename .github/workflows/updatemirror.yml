@@ -21,6 +21,7 @@ jobs:
           - ONLYOFFICE/desktop-sdk
           - ONLYOFFICE/dictionaries
           - ONLYOFFICE/Docker-DocumentServer
+          - ONLYOFFICE/document-formats
           - ONLYOFFICE/document-server-integration
           - ONLYOFFICE/document-server-package
           - ONLYOFFICE/document-templates
