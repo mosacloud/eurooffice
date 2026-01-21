@@ -148,6 +148,21 @@ COPY web-apps/ /app
     RUN cd app/build && \
         THEME=nextcloud grunt --force $(if [ "$TARGETARCH" = "arm64" ]; then echo "--skip-imagemin"; fi)
 
+#### DOCUMENTSERVER-EXAMPLE ####
+FROM base AS build-example
+    RUN --mount=type=bind,source=./document-server-integration/web/documentserver-example/nodejs,target=/temp,rw \
+        mkdir -p /example && \
+        cd /temp && \
+        npm install && \
+        pkg . -t linux-x64 --options max_old_space_size=4096 -o /example/example && \
+        # Copy config directory
+        mkdir -p /example/config && cp -r config/* /example/config/ && \
+        # Copy public assets
+        mkdir -p /example/public && cp -r public/* /example/public/
+
+FROM scratch AS example
+    COPY --from=build-example /example /example
+
 #### SERVER ####
 FROM base AS server
     ARG PRODUCT_VERSION
@@ -249,6 +264,14 @@ COPY --from=server ${BUILD_ROOT}/adminpanel    ${EO_ROOT}/server/AdminPanel/serv
 COPY --from=server ${BUILD_ROOT}/build         ${EO_ROOT}/server/AdminPanel/client/build
 
 COPY core-fonts ${EO_ROOT}/core-fonts
+
+# Install our self-built example app
+COPY --from=example /example/example /var/www/onlyoffice/documentserver-example/example
+# Copy patched config file default.json
+COPY --from=example /example/config/* /etc/onlyoffice/documentserver-example/
+
+RUN sed 's,autostart=false,autostart=true,' -i /etc/supervisor/conf.d/ds-example.conf
+
 
 # Create required config directories and files
 RUN mkdir -p ${EO_ROOT}/server/Common/config && \
