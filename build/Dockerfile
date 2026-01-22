@@ -104,7 +104,7 @@ FROM base AS build-web-apps
         export PRODUCT_VERSION=$PRODUCT_VERSION && \
         cd /temp/build && \
         npm install && \
-        grunt --skip-imagemin && \
+        grunt && \
         cp -r /temp/deploy/web-apps /web-apps
 
 FROM scratch AS web-apps
@@ -191,11 +191,6 @@ FROM upstream AS finalupstream
 FROM ubuntu:24.04 AS finalubuntu
     ARG PRODUCT_VERSION
 
-    ## This should be removed in the end
-    COPY --from=fonts /AllFonts-web.js /var/www/onlyoffice/documentserver/sdkjs/common/AllFonts.js
-    COPY --from=fonts /AllFonts.js /var/www/onlyoffice/documentserver/server/FileConverter/bin/AllFonts.js
-    #COPY --from=fonts /core-fonts /var/www/onlyoffice/documentserver/core-fonts
-
     ## Copy sdkjs and web-apps builds
     COPY --from=sdkjs /sdkjs /var/www/onlyoffice/documentserver/sdkjs
     COPY --from=web-apps /web-apps /var/www/onlyoffice/documentserver/web-apps
@@ -256,6 +251,7 @@ FROM ubuntu:24.04 AS finalubuntu
         rm -f /etc/nginx/sites-enabled/default && \
         mkdir -p /var/log/onlyoffice/documentserver/ && \
         mkdir -p /var/www/onlyoffice/documentserver/sdkjs-plugins && \
+        mkdir -p /var/www/onlyoffice/documentserver/fonts && \
         touch /var/log/onlyoffice/documentserver/nginx.error.log && \
         /usr/bin/documentserver-flush-cache.sh -r false
 
