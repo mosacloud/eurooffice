@@ -247,7 +247,7 @@ FROM ubuntu:24.04 AS finalubuntu
         sudo -u postgres psql -c "CREATE DATABASE onlyoffice OWNER onlyoffice;" && \
         sudo -u postgres bash -c "PGPASSWORD=onlyoffice psql -h localhost -U onlyoffice -d onlyoffice -f /var/www/onlyoffice/documentserver/server/schema/postgresql/createdb.sql" && \
         rm -f /etc/nginx/sites-enabled/default && \
-        mkdir -p /var/log/onlyoffice/documentserver/ && \
+        mkdir -p /var/log/onlyoffice/documentserver/docservice /var/log/onlyoffice/documentserver/converter && \
         mkdir -p /var/www/onlyoffice/documentserver/sdkjs-plugins && \
         mkdir -p /var/www/onlyoffice/documentserver/fonts && \
         touch /var/log/onlyoffice/documentserver/nginx.error.log && \
