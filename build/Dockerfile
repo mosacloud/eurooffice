@@ -210,16 +210,16 @@ FROM ubuntu:24.04 AS finalubuntu
     COPY --from=server /server/adminpanel /var/www/onlyoffice/documentserver/server/AdminPanel/server/adminpanel
 
     ## Copy the core fonts
-    COPY fork/build/build_files/data/www/onlyoffice/documentserver/core-fonts /var/www/onlyoffice/documentserver/core-fonts
+    COPY core-fonts /var/www/onlyoffice/documentserver/core-fonts
 
     ## Copy the table scheme for postgres
-    COPY fork/build/build_files/data/www/onlyoffice/documentserver/server/schema /var/www/onlyoffice/documentserver/server/schema
+    COPY fork/build/build_files/config/postgres /var/www/onlyoffice/documentserver/server/schema/postgresql
 
     ## Copy onlyoffice config files
-    COPY fork/build/build_files/config/onlyoffice/documentserver/default.json /etc/onlyoffice/documentserver/default.json
-    COPY fork/build/build_files/config/onlyoffice/documentserver/production-linux.json /etc/onlyoffice/documentserver/production-linux.json
-    COPY fork/build/build_files/config/onlyoffice/documentserver/log4js/production.json /etc/onlyoffice/documentserver/log4js/production.json 
-    COPY fork/build/build_files/config/onlyoffice/documentserver/local.json /etc/onlyoffice/documentserver/local.json
+    COPY fork/build/build_files/config/onlyoffice/default.json /etc/onlyoffice/documentserver/default.json
+    COPY fork/build/build_files/config/onlyoffice/development-linux.json /etc/onlyoffice/documentserver/development-linux.json
+    COPY fork/build/build_files/config/onlyoffice/log4js/development.json /etc/onlyoffice/documentserver/log4js/development.json 
+    COPY fork/build/build_files/config/onlyoffice/local.json /etc/onlyoffice/documentserver/local.json
 
 
     ## Copy nginx config files
@@ -227,8 +227,8 @@ FROM ubuntu:24.04 AS finalubuntu
     COPY fork/build/build_files/config/nginx/includes /etc/nginx/includes/
 
     ## Copy scripts
-    COPY fork/build/build_files/documentserver-flush-cache.sh /usr/bin/documentserver-flush-cache.sh
-    COPY fork/build/build_files/documentserver-generate-allfonts.sh /usr/bin/documentserver-generate-allfonts.sh
+    COPY fork/build/build_files/scripts/documentserver-flush-cache.sh /usr/bin/documentserver-flush-cache.sh
+    COPY fork/build/build_files/scripts/documentserver-generate-allfonts.sh /usr/bin/documentserver-generate-allfonts.sh
 
 
     ## Init the image
@@ -245,8 +245,6 @@ FROM ubuntu:24.04 AS finalubuntu
         service postgresql start && \
         sudo -u postgres psql -c "CREATE USER onlyoffice WITH password 'onlyoffice';" && \
         sudo -u postgres psql -c "CREATE DATABASE onlyoffice OWNER onlyoffice;" && \
-        #sudo -u postgres psql -c "GRANT ALL privileges ON DATABASE onlyoffice TO onlyoffice;" && \
-        #sudo -u postgres PGPASSWORD=onlyoffice psql -d onlyoffice -U onlyoffice -p onlyoffice -f "/var/www/onlyoffice/documentserver/server/schema/postgresql/createdb.sql" && \
         sudo -u postgres bash -c "PGPASSWORD=onlyoffice psql -h localhost -U onlyoffice -d onlyoffice -f /var/www/onlyoffice/documentserver/server/schema/postgresql/createdb.sql" && \
         rm -f /etc/nginx/sites-enabled/default && \
         mkdir -p /var/log/onlyoffice/documentserver/ && \
@@ -256,7 +254,7 @@ FROM ubuntu:24.04 AS finalubuntu
         /usr/bin/documentserver-flush-cache.sh -r false
 
     
-    COPY fork/build/build_files/entrypoint.sh /entrypoint.sh
+    COPY fork/build/build_files/scripts/entrypoint.sh /entrypoint.sh
     RUN chmod +x /entrypoint.sh
 
     ENTRYPOINT ["/entrypoint.sh"]
