@@ -1,5 +1,6 @@
 # Bring in the upstream OnlyOffice Document Server image so that
 # we can extract things from it later
+
 FROM onlyoffice/documentserver:latest AS upstream
 
 
@@ -113,26 +114,30 @@ FROM scratch AS web-apps
 
 #### SERVER ####
 FROM base AS build-server
+    ARG PRODUCT_VERSION
+    
     RUN --mount=type=bind,source=./server,target=/temp,rw \
         mkdir /server && \
         cd /temp/Common && \
+        export PRODUCT_VERSION=$PRODUCT_VERSION && \
+        sed "s|\(const buildVersion = \).*|\1'${PRODUCT_VERSION}';|" -i sources/commondefines.js && \
         npm install && \
         #### DOCSERVICE ####
         cd /temp/DocService && \
         npm install && \
-        pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/docservice && \
+        pkg . -t linux-x64 --node-options="--max_old_space_size=4096" -o /server/docservice && \
         #### FILECONVERTER ####
         cd /temp/FileConverter && \
         npm install && \
-        pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/fileconverter && \
+        pkg . -t linux-x64 --node-options="--max_old_space_size=4096" -o /server/fileconverter && \
         #### METRICS ####
         cd /temp/Metrics && \
         npm install && \
-        pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/metrics && \
+        pkg . -t linux-x64 --node-options="--max_old_space_size=4096" -o /server/metrics && \
         #### ADMINPANEL ####
         cd /temp/AdminPanel/server && \
         npm install && \
-        pkg . -t linux-x64 --options max_old_space_size=4096 -o /server/adminpanel && \
+        pkg . -t linux-x64 --node-options="--max_old_space_size=4096" -o /server/adminpanel && \
         #### CONFIG ####
         cp -rP /temp/Common/config /server/config
 
@@ -163,10 +168,15 @@ FROM upstream AS finalupstream
 
     COPY --from=core /core_binaries/* /var/www/onlyoffice/documentserver/server/FileConverter/bin/
 
-    COPY --from=server /server/docservice /var/www/onlyoffice/documentserver/docservice
-    COPY --from=server /server/fileconverter /var/www/onlyoffice/documentserver/server/fileconverter
-    COPY --from=server /server/metrics /var/www/onlyoffice/documentserver/metrics
-    COPY --from=server /server/adminpanel /var/www/onlyoffice/documentserver/adminpanel
+    RUN mv -f /var/www/onlyoffice/documentserver/server/FileConverter/bin/allfontsgen    /var/www/onlyoffice/documentserver/server/tools/ && \
+        mv -f /var/www/onlyoffice/documentserver/server/FileConverter/bin/allthemesgen   /var/www/onlyoffice/documentserver/server/tools/ && \
+        mv -f /var/www/onlyoffice/documentserver/server/FileConverter/bin/pluginsmanager /var/www/onlyoffice/documentserver/server/tools/
+
+
+    COPY --from=server /server/docservice /var/www/onlyoffice/documentserver/server/DocService/docservice
+    COPY --from=server /server/fileconverter /var/www/onlyoffice/documentserver/server/FileConverter/converter
+    COPY --from=server /server/metrics /var/www/onlyoffice/documentserver/server/Metrics/metrics
+    COPY --from=server /server/adminpanel /var/www/onlyoffice/documentserver/server/AdminPanel/server/adminpanel
 
     RUN sed 's,autostart=false,autostart=true,' -i /etc/supervisor/conf.d/ds-example.conf
 
