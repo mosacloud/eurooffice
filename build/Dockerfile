@@ -170,10 +170,7 @@ FROM upstream AS finalupstream
 
     COPY --from=core /core_binaries/* /var/www/onlyoffice/documentserver/server/FileConverter/bin/
 
-    RUN apt-get -y update && \
-        ACCEPT_EULA=Y apt-get -yq install \
-        gdb && \ 
-        mv -f /var/www/onlyoffice/documentserver/server/FileConverter/bin/allfontsgen    /var/www/onlyoffice/documentserver/server/tools/ && \
+    RUN mv -f /var/www/onlyoffice/documentserver/server/FileConverter/bin/allfontsgen    /var/www/onlyoffice/documentserver/server/tools/ && \
         mv -f /var/www/onlyoffice/documentserver/server/FileConverter/bin/allthemesgen   /var/www/onlyoffice/documentserver/server/tools/ && \
         mv -f /var/www/onlyoffice/documentserver/server/FileConverter/bin/pluginsmanager /var/www/onlyoffice/documentserver/server/tools/
 
@@ -225,6 +222,9 @@ FROM ubuntu:24.04 AS finalubuntu
     ## Copy nginx config files
     COPY fork/build/build_files/config/nginx/conf.d /etc/nginx/conf.d/
     COPY fork/build/build_files/config/nginx/includes /etc/nginx/includes/
+
+    ## Copy DoctRenderer config file
+    COPY fork/build/build_files/config/core/DoctRenderer.config /var/www/onlyoffice/documentserver/server/FileConverter/bin/DoctRenderer.config
 
     ## Copy scripts
     COPY fork/build/build_files/scripts/documentserver-flush-cache.sh /usr/bin/documentserver-flush-cache.sh
