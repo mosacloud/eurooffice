@@ -128,6 +128,11 @@ FROM base AS server
         cd /server/AdminPanel/server && \
         npm install
 
+    COPY server/AdminPanel/client/package*.json /server/AdminPanel/client/
+    RUN --mount=type=cache,target=/root/.npm \
+        cd /server/AdminPanel/client && \
+        npm install
+
     COPY server/ /server
 
     ENV BUILD_ROOT=${BUILD_ROOT}
@@ -146,6 +151,10 @@ FROM base AS server
 
     RUN cd /server/AdminPanel/server && \
         pkg . -t linux-x64 --node-options="--max_old_space_size=4096" -o ${BUILD_ROOT}/adminpanel
+
+    RUN cd /server/AdminPanel/client && \
+        npm run build && \
+        cp -r build ${BUILD_ROOT}/
 
 
 
@@ -186,10 +195,6 @@ FROM ubuntu:24.04 AS finalubuntu
     ARG PRODUCT_VERSION
     ARG BUILD_ROOT
 
-
-    ## Copy the table scheme for postgres
-    COPY fork/build/build_files/config/postgres /var/www/onlyoffice/documentserver/server/schema/postgresql
-
     ## Install necessary requirements
     RUN apt-get -y update && \
         ACCEPT_EULA=Y apt-get -yq install \
@@ -200,15 +205,24 @@ FROM ubuntu:24.04 AS finalubuntu
                 nginx \
                 sudo \
                 gdb \
-                nginx-extras && \
-        service postgresql start && \
+                nginx-extras
+    
+    ## Copy the table scheme for postgres
+    COPY fork/build/build_files/config/postgres /var/www/onlyoffice/documentserver/server/schema/postgresql
+
+    ## Configure Postgres Server
+    RUN service postgresql start && \
         sudo -u postgres psql -c "CREATE USER onlyoffice WITH password 'onlyoffice';" && \
         sudo -u postgres psql -c "CREATE DATABASE onlyoffice OWNER onlyoffice;" && \
-        sudo -u postgres bash -c "PGPASSWORD=onlyoffice psql -h localhost -U onlyoffice -d onlyoffice -f /var/www/onlyoffice/documentserver/server/schema/postgresql/createdb.sql" && \
-        rm -f /etc/nginx/sites-enabled/default && \
-        mkdir -p /var/log/onlyoffice/documentserver/docservice /var/log/onlyoffice/documentserver/converter && \
-        mkdir -p /var/www/onlyoffice/documentserver/sdkjs-plugins && \
-        mkdir -p /var/www/onlyoffice/documentserver/fonts && \
+        sudo -u postgres bash -c "PGPASSWORD=onlyoffice psql -h localhost -U onlyoffice -d onlyoffice -f /var/www/onlyoffice/documentserver/server/schema/postgresql/createdb.sql"
+    
+    ## Create folder structure
+    RUN rm -f /etc/nginx/sites-enabled/default && \
+        mkdir -p /var/log/onlyoffice/documentserver/docservice \
+                 /var/log/onlyoffice/documentserver/converter \
+                 /var/log/onlyoffice/documentserver/adminpanel \
+                 /var/www/onlyoffice/documentserver/sdkjs-plugins \
+                 /var/www/onlyoffice/documentserver/fonts && \
         touch /var/log/onlyoffice/documentserver/nginx.error.log
 
     ## Copy sdkjs and web-apps builds
@@ -228,6 +242,7 @@ FROM ubuntu:24.04 AS finalubuntu
     COPY --from=server ${BUILD_ROOT}/fileconverter /var/www/onlyoffice/documentserver/server/FileConverter/converter
     COPY --from=server ${BUILD_ROOT}/metrics /var/www/onlyoffice/documentserver/server/Metrics/metrics
     COPY --from=server ${BUILD_ROOT}/adminpanel /var/www/onlyoffice/documentserver/server/AdminPanel/server/adminpanel
+    COPY --from=server ${BUILD_ROOT}/build /var/www/onlyoffice/documentserver/server/AdminPanel/client/build
 
     ## Copy the core fonts
     COPY core-fonts /var/www/onlyoffice/documentserver/core-fonts
@@ -251,8 +266,7 @@ FROM ubuntu:24.04 AS finalubuntu
     ## Copy scripts
     COPY fork/build/build_files/scripts/documentserver-flush-cache.sh /usr/bin/documentserver-flush-cache.sh
     COPY fork/build/build_files/scripts/documentserver-generate-allfonts.sh /usr/bin/documentserver-generate-allfonts.sh
-    
-    
+
     RUN /usr/bin/documentserver-flush-cache.sh -r false
 
     
