@@ -1,5 +1,7 @@
 # Bring in the upstream OnlyOffice Document Server image so that
 # we can extract things from it later
+ARG $BASE_VERSION=24.04
+ARG PACKAGE_SUFFIX=t64
 
 FROM onlyoffice/documentserver:latest AS upstream
 
@@ -44,7 +46,7 @@ FROM ubuntu AS core
     RUN --mount=type=bind,source=./core,target=/core,rw <<EOF
         mkdir -p /tmp/core_build
         cd /tmp/core_build
-        cmake -GNinja -DEO_CORE_OUTPUT_DIR=/core_binaries /core
+        cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" -DCMAKE_C_FLAGS_DEBUG="-g -O0" -DEO_CORE_OUTPUT_DIR=/core_binaries /core
         cmake --build .
 EOF
 
@@ -102,7 +104,7 @@ FROM base AS build-web-apps
         export PRODUCT_VERSION=$PRODUCT_VERSION && \
         cd /temp/build && \
         npm install && \
-        grunt --skip-imagemin && \
+        grunt && \
         cp -r /temp/deploy/web-apps /web-apps
 
 FROM scratch AS web-apps
@@ -182,6 +184,80 @@ FROM upstream AS finalupstream
 
     # COPY ./onlyoffice.github.io/sdkjs-plugins /sdkjs-plugins
 
+
+FROM ubuntu:24.04 AS finalubuntu
+    ARG PRODUCT_VERSION
+
+    ## Copy sdkjs and web-apps builds
+    COPY --from=sdkjs /sdkjs /var/www/onlyoffice/documentserver/sdkjs
+    COPY --from=web-apps /web-apps /var/www/onlyoffice/documentserver/web-apps
+
+    ## Copy core builds
+    COPY --from=core /core_binaries/* /var/www/onlyoffice/documentserver/server/FileConverter/bin/
+    RUN mkdir /var/www/onlyoffice/documentserver/server/tools/ && \
+        mv /var/www/onlyoffice/documentserver/server/FileConverter/bin/allfontsgen    /var/www/onlyoffice/documentserver/server/tools/ && \
+        mv /var/www/onlyoffice/documentserver/server/FileConverter/bin/allthemesgen   /var/www/onlyoffice/documentserver/server/tools/ && \
+        mv /var/www/onlyoffice/documentserver/server/FileConverter/bin/pluginsmanager /var/www/onlyoffice/documentserver/server/tools/
+
+
+    ## Copy server builds
+    COPY --from=server /server/docservice /var/www/onlyoffice/documentserver/server/DocService/docservice
+    COPY --from=server /server/fileconverter /var/www/onlyoffice/documentserver/server/FileConverter/converter
+    COPY --from=server /server/metrics /var/www/onlyoffice/documentserver/server/Metrics/metrics
+    COPY --from=server /server/adminpanel /var/www/onlyoffice/documentserver/server/AdminPanel/server/adminpanel
+
+    ## Copy the core fonts
+    COPY core-fonts /var/www/onlyoffice/documentserver/core-fonts
+
+    ## Copy the table scheme for postgres
+    COPY fork/build/build_files/config/postgres /var/www/onlyoffice/documentserver/server/schema/postgresql
+
+    ## Copy onlyoffice config files
+    COPY fork/build/build_files/config/onlyoffice/default.json /etc/onlyoffice/documentserver/default.json
+    COPY fork/build/build_files/config/onlyoffice/development-linux.json /etc/onlyoffice/documentserver/development-linux.json
+    COPY fork/build/build_files/config/onlyoffice/log4js/development.json /etc/onlyoffice/documentserver/log4js/development.json 
+    COPY fork/build/build_files/config/onlyoffice/local.json /etc/onlyoffice/documentserver/local.json
+
+
+    ## Copy nginx config files
+    COPY fork/build/build_files/config/nginx/conf.d /etc/nginx/conf.d/
+    COPY fork/build/build_files/config/nginx/includes /etc/nginx/includes/
+
+    ## Copy DoctRenderer config file
+    COPY fork/build/build_files/config/core/DoctRenderer.config /var/www/onlyoffice/documentserver/server/FileConverter/bin/DoctRenderer.config
+
+    ## Copy scripts
+    COPY fork/build/build_files/scripts/documentserver-flush-cache.sh /usr/bin/documentserver-flush-cache.sh
+    COPY fork/build/build_files/scripts/documentserver-generate-allfonts.sh /usr/bin/documentserver-generate-allfonts.sh
+
+
+    ## Init the image
+    RUN apt-get -y update && \
+        ACCEPT_EULA=Y apt-get -yq install \
+                postgresql \
+                postgresql-client \
+                redis-server \
+                rabbitmq-server \
+                nginx \
+                sudo \
+                gdb \
+                nginx-extras && \
+        service postgresql start && \
+        sudo -u postgres psql -c "CREATE USER onlyoffice WITH password 'onlyoffice';" && \
+        sudo -u postgres psql -c "CREATE DATABASE onlyoffice OWNER onlyoffice;" && \
+        sudo -u postgres bash -c "PGPASSWORD=onlyoffice psql -h localhost -U onlyoffice -d onlyoffice -f /var/www/onlyoffice/documentserver/server/schema/postgresql/createdb.sql" && \
+        rm -f /etc/nginx/sites-enabled/default && \
+        mkdir -p /var/log/onlyoffice/documentserver/docservice /var/log/onlyoffice/documentserver/converter && \
+        mkdir -p /var/www/onlyoffice/documentserver/sdkjs-plugins && \
+        mkdir -p /var/www/onlyoffice/documentserver/fonts && \
+        touch /var/log/onlyoffice/documentserver/nginx.error.log && \
+        /usr/bin/documentserver-flush-cache.sh -r false
+
+    
+    COPY fork/build/build_files/scripts/entrypoint.sh /entrypoint.sh
+    RUN chmod +x /entrypoint.sh
+
+    ENTRYPOINT ["/entrypoint.sh"]
 
 #### attempt one: WEB-APPS DEV HELPER, changes not reflecting in web-apps
 
