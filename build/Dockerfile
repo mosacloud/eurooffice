@@ -53,6 +53,52 @@ FROM ubuntu AS core
         cmake --build .
 EOF
 
+#### CORE WASM ####
+FROM ubuntu:24.04 AS core-wasm 
+    ARG BUILD_ROOT
+
+    ## Install Dependencies
+    RUN apt-get -y update && \
+        apt-get -y upgrade && \
+        apt-get -y install \
+                   tar \
+                   xz-utils \
+                   wget \ 
+                   cmake \
+                   python3 \
+                   libtool-bin \
+                   autoconf \
+                   pkg-config \
+                   python3-dev \
+                   git \
+                   python-is-python3
+
+    ## Install Emscripten
+    RUN wget -qO emsdk.tar.gz https://github.com/emscripten-core/emsdk/archive/main.tar.gz && \
+        mkdir /opt/emsdk && \
+        tar xf emsdk.tar.gz --strip-components=1 -C /opt/emsdk && \
+        /opt/emsdk/emsdk install latest && \
+        /opt/emsdk/emsdk activate latest && \
+        chmod +x /opt/emsdk/emsdk_env.sh && \
+        /bin/bash -c "source /opt/emsdk/emsdk_env.sh" && \
+        rm -rf emsdk.tar.gz
+
+
+    ENV BUILD_ROOT=${BUILD_ROOT}
+
+    COPY core /core
+
+    RUN --mount=type=cache,target=/build-cache <<EOF
+        cd /build-cache
+        /bin/bash -c "source /opt/emsdk/emsdk_env.sh && emcmake cmake /core && cmake --build ."
+        mkdir -p ${BUILD_ROOT}
+        cp -r /build-cache/package/* ${BUILD_ROOT}/
+EOF
+
+
+
+   
+
 #### SDKJS ####
 FROM base AS sdkjs
 
@@ -207,6 +253,12 @@ FROM ubuntu:24.04 AS finalubuntu
     COPY --from=core ${BUILD_ROOT}/bin/* ${EO_ROOT}/server/FileConverter/bin/
     COPY --from=core ${BUILD_ROOT}/tools/* ${EO_ROOT}/server/tools/
 
+    ## Copy core wasm builds
+    COPY --from=core-wasm ${BUILD_ROOT}/drawingfile/* /var/www/onlyoffice/documentserver/sdkjs/pdf/src/engine
+    COPY --from=core-wasm ${BUILD_ROOT}/zlib/* /var/www/onlyoffice/documentserver/sdkjs/common/zlib/engine
+    COPY --from=core-wasm ${BUILD_ROOT}/engine/* /var/www/onlyoffice/documentserver/sdkjs/common/hash/hash
+    COPY --from=core-wasm ${BUILD_ROOT}/spell/* /var/www/onlyoffice/documentserver/sdkjs/common/spell/spell
+    COPY --from=core-wasm ${BUILD_ROOT}/fonts/* /var/www/onlyoffice/documentserver/sdkjs/common/libfont/engine
 
     ## Copy server builds
     COPY --from=server ${BUILD_ROOT}/docservice    ${EO_ROOT}/server/DocService/docservice
