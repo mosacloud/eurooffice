@@ -221,6 +221,7 @@ FROM ubuntu:24.04 AS finalubuntu
         mkdir -p /var/log/onlyoffice/documentserver/docservice \
                  /var/log/onlyoffice/documentserver/converter \
                  /var/log/onlyoffice/documentserver/adminpanel \
+                 /var/log/onlyoffice/documentserver/metrics \
                  /var/www/onlyoffice/documentserver/sdkjs-plugins \
                  /var/www/onlyoffice/documentserver/fonts && \
         touch /var/log/onlyoffice/documentserver/nginx.error.log
@@ -253,6 +254,8 @@ FROM ubuntu:24.04 AS finalubuntu
     COPY fork/build/build_files/config/onlyoffice/log4js/development.json /etc/onlyoffice/documentserver/log4js/development.json 
     COPY fork/build/build_files/config/onlyoffice/local.json /etc/onlyoffice/documentserver/local.json
 
+    ## Copy metrics config files
+    COPY fork/build/build_files/config/metrics/config/config.js /var/www/onlyoffice/documentserver/server/Metrics/config/config.js
 
     ## Copy nginx config files
     COPY fork/build/build_files/config/nginx/conf.d /etc/nginx/conf.d/
