@@ -254,11 +254,22 @@ FROM ubuntu:24.04 AS finalubuntu
     COPY --from=core ${BUILD_ROOT}/tools/* ${EO_ROOT}/server/tools/
 
     ## Copy core wasm builds
-    COPY --from=core-wasm ${BUILD_ROOT}/drawingfile/* /var/www/onlyoffice/documentserver/sdkjs/pdf/src/engine
-    COPY --from=core-wasm ${BUILD_ROOT}/zlib/* /var/www/onlyoffice/documentserver/sdkjs/common/zlib/engine
-    COPY --from=core-wasm ${BUILD_ROOT}/engine/* /var/www/onlyoffice/documentserver/sdkjs/common/hash/hash
-    COPY --from=core-wasm ${BUILD_ROOT}/spell/* /var/www/onlyoffice/documentserver/sdkjs/common/spell/spell
-    COPY --from=core-wasm ${BUILD_ROOT}/fonts/* /var/www/onlyoffice/documentserver/sdkjs/common/libfont/engine
+    #COPY --from=core-wasm ${BUILD_ROOT}/drawingfile/* /var/www/onlyoffice/documentserver/sdkjs/pdf/src/engine
+    #COPY --from=core-wasm ${BUILD_ROOT}/zlib/* /var/www/onlyoffice/documentserver/sdkjs/common/zlib/engine
+    #COPY --from=core-wasm ${BUILD_ROOT}/engine/* /var/www/onlyoffice/documentserver/sdkjs/common/hash/hash
+    #COPY --from=core-wasm ${BUILD_ROOT}/spell/* /var/www/onlyoffice/documentserver/sdkjs/common/spell/spell
+    #COPY --from=core-wasm ${BUILD_ROOT}/fonts/* /var/www/onlyoffice/documentserver/sdkjs/common/libfont/engine
+
+    # Delete wasm files to see what breaks
+    RUN rm /var/www/onlyoffice/documentserver/sdkjs/pdf/src/engine/drawingfile.wasm && \
+        rm /var/www/onlyoffice/documentserver/sdkjs/common/zlib/engine/zlib.wasm && \
+        rm /var/www/onlyoffice/documentserver/sdkjs/common/hash/hash/engine.wasm && \
+        rm /var/www/onlyoffice/documentserver/sdkjs/common/spell/spell/spell.wasm 
+        # rm /var/www/onlyoffice/documentserver/sdkjs/common/libfont/engine/fonts.wasm
+
+
+    ## Copy dictionary
+    COPY dictionaries /var/www/onlyoffice/documentserver/dictionaries
 
     ## Copy server builds
     COPY --from=server ${BUILD_ROOT}/docservice    ${EO_ROOT}/server/DocService/docservice
