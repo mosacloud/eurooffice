@@ -4,7 +4,6 @@ FROM onlyoffice/documentserver:latest AS upstream
 
 ARG BUILD_ROOT=/package
 
-
 #### BASE ####
 FROM debian:trixie AS base
     RUN apt update && \
@@ -153,47 +152,21 @@ FROM base AS server
         pkg . -t linux-x64 --node-options="--max_old_space_size=4096" -o ${BUILD_ROOT}/adminpanel
 
     RUN cd /server/AdminPanel/client && \
-        npm run build && \
-        cp -r build ${BUILD_ROOT}/
+        npm run build
 
-
-
-#### FINAL UPSTREAM IMAGE ####
-# This image is based on the upstream OnlyOffice Document Server image
-# but with our built components copied into it. 
-# This is the first step to proof we are able to build components
-# successfully and integrate them into the Document Server.
-# Later, we will create a final image that contains only the
-# built components and necessary runtime files and dependency services like
-# PostgreSQL, Redis, RabbitMQ
-
-FROM upstream AS finalupstream
-    ARG PRODUCT_VERSION
-    ARG BUILD_ROOT
-
-    COPY --from=sdkjs ${BUILD_ROOT} /var/www/onlyoffice/documentserver/sdkjs
-    COPY --from=web-apps ${BUILD_ROOT} /var/www/onlyoffice/documentserver/web-apps
-
-    COPY --from=core ${BUILD_ROOT}/* /var/www/onlyoffice/documentserver/server/FileConverter/bin/
-
-    RUN mv -f /var/www/onlyoffice/documentserver/server/FileConverter/bin/allfontsgen    /var/www/onlyoffice/documentserver/server/tools/ && \
-        mv -f /var/www/onlyoffice/documentserver/server/FileConverter/bin/allthemesgen   /var/www/onlyoffice/documentserver/server/tools/ && \
-        mv -f /var/www/onlyoffice/documentserver/server/FileConverter/bin/pluginsmanager /var/www/onlyoffice/documentserver/server/tools/
-
-
-    COPY --from=server ${BUILD_ROOT}/docservice /var/www/onlyoffice/documentserver/server/DocService/docservice
-    COPY --from=server ${BUILD_ROOT}/fileconverter /var/www/onlyoffice/documentserver/server/FileConverter/converter
-    COPY --from=server ${BUILD_ROOT}/metrics /var/www/onlyoffice/documentserver/server/Metrics/metrics
-    COPY --from=server ${BUILD_ROOT}/adminpanel /var/www/onlyoffice/documentserver/server/AdminPanel/server/adminpanel
-
-    RUN sed 's,autostart=false,autostart=true,' -i /etc/supervisor/conf.d/ds-example.conf
-
-    # COPY ./onlyoffice.github.io/sdkjs-plugins /sdkjs-plugins
 
 #### FINAL UBUNTU ####
 FROM ubuntu:24.04 AS finalubuntu
     ARG PRODUCT_VERSION
     ARG BUILD_ROOT
+
+    ARG EO_ROOT=/var/www/onlyoffice/documentserver
+    ARG EO_LOG=/var/log/onlyoffice/documentserver
+    ARG EO_CONF=/etc/onlyoffice/documentserver
+
+    ENV EO_ROOT=${EO_ROOT}
+    ENV EO_LOG=${EO_LOG}
+    ENV EO_CONF=${EO_CONF}
 
     ## Install necessary requirements
     RUN apt-get -y update && \
@@ -205,75 +178,124 @@ FROM ubuntu:24.04 AS finalubuntu
                 nginx \
                 sudo \
                 gdb \
-                nginx-extras
+                nginx-extras \
+                supervisor
     
     ## Copy the table scheme for postgres
-    COPY fork/build/build_files/config/postgres /var/www/onlyoffice/documentserver/server/schema/postgresql
+    COPY fork/build/configs/postgres ${EO_ROOT}/server/schema/postgresql
 
     ## Configure Postgres Server
     RUN service postgresql start && \
         sudo -u postgres psql -c "CREATE USER onlyoffice WITH password 'onlyoffice';" && \
         sudo -u postgres psql -c "CREATE DATABASE onlyoffice OWNER onlyoffice;" && \
-        sudo -u postgres bash -c "PGPASSWORD=onlyoffice psql -h localhost -U onlyoffice -d onlyoffice -f /var/www/onlyoffice/documentserver/server/schema/postgresql/createdb.sql"
+        sudo -u postgres bash -c "PGPASSWORD=onlyoffice psql -h localhost -U onlyoffice -d onlyoffice -f ${EO_ROOT}/server/schema/postgresql/createdb.sql"
     
     ## Create folder structure
     RUN rm -f /etc/nginx/sites-enabled/default && \
-        mkdir -p /var/log/onlyoffice/documentserver/docservice \
-                 /var/log/onlyoffice/documentserver/converter \
-                 /var/log/onlyoffice/documentserver/adminpanel \
-                 /var/log/onlyoffice/documentserver/metrics \
-                 /var/www/onlyoffice/documentserver/sdkjs-plugins \
-                 /var/www/onlyoffice/documentserver/fonts && \
-        touch /var/log/onlyoffice/documentserver/nginx.error.log
+        mkdir -p ${EO_LOG}/docservice \
+                 ${EO_LOG}/converter \
+                 ${EO_LOG}/adminpanel \
+                 ${EO_LOG}/metrics \
+                 ${EO_ROOT}/sdkjs-plugins \
+                 ${EO_ROOT}/fonts && \
+        touch ${EO_LOG}/nginx.error.log
 
     ## Copy sdkjs and web-apps builds
-    COPY --from=sdkjs ${BUILD_ROOT} /var/www/onlyoffice/documentserver/
-    COPY --from=web-apps ${BUILD_ROOT} /var/www/onlyoffice/documentserver/
+    COPY --from=sdkjs ${BUILD_ROOT} ${EO_ROOT}/
+    COPY --from=web-apps ${BUILD_ROOT} ${EO_ROOT}/
 
     ## Copy core builds
-    COPY --from=core ${BUILD_ROOT}/* /var/www/onlyoffice/documentserver/server/FileConverter/bin/
-    RUN mkdir /var/www/onlyoffice/documentserver/server/tools/ && \
-        mv /var/www/onlyoffice/documentserver/server/FileConverter/bin/allfontsgen    /var/www/onlyoffice/documentserver/server/tools/ && \
-        mv /var/www/onlyoffice/documentserver/server/FileConverter/bin/allthemesgen   /var/www/onlyoffice/documentserver/server/tools/ && \
-        mv /var/www/onlyoffice/documentserver/server/FileConverter/bin/pluginsmanager /var/www/onlyoffice/documentserver/server/tools/
+    COPY --from=core ${BUILD_ROOT}/* ${EO_ROOT}/server/FileConverter/bin/
+    RUN mkdir ${EO_ROOT}/server/tools/ && \
+        mv ${EO_ROOT}/server/FileConverter/bin/allfontsgen    ${EO_ROOT}/server/tools/ && \
+        mv ${EO_ROOT}/server/FileConverter/bin/allthemesgen   ${EO_ROOT}/server/tools/ && \
+        mv ${EO_ROOT}/server/FileConverter/bin/pluginsmanager ${EO_ROOT}/server/tools/
 
 
     ## Copy server builds
-    COPY --from=server ${BUILD_ROOT}/docservice /var/www/onlyoffice/documentserver/server/DocService/docservice
-    COPY --from=server ${BUILD_ROOT}/fileconverter /var/www/onlyoffice/documentserver/server/FileConverter/converter
-    COPY --from=server ${BUILD_ROOT}/metrics /var/www/onlyoffice/documentserver/server/Metrics/metrics
-    COPY --from=server ${BUILD_ROOT}/adminpanel /var/www/onlyoffice/documentserver/server/AdminPanel/server/adminpanel
-    COPY --from=server ${BUILD_ROOT}/build /var/www/onlyoffice/documentserver/server/AdminPanel/client/build
+    COPY --from=server ${BUILD_ROOT}/docservice    ${EO_ROOT}/server/DocService/docservice
+    COPY --from=server ${BUILD_ROOT}/fileconverter ${EO_ROOT}/server/FileConverter/converter
+    COPY --from=server ${BUILD_ROOT}/metrics       ${EO_ROOT}/server/Metrics/metrics
+    COPY --from=server ${BUILD_ROOT}/adminpanel    ${EO_ROOT}/server/AdminPanel/server/adminpanel
+    COPY --from=server ${BUILD_ROOT}/build         ${EO_ROOT}/server/AdminPanel/client/build
 
     ## Copy the core fonts
-    COPY core-fonts /var/www/onlyoffice/documentserver/core-fonts
+    COPY core-fonts ${EO_ROOT}/core-fonts
 
     ## Copy onlyoffice config files
-    COPY fork/build/build_files/config/onlyoffice/default.json /etc/onlyoffice/documentserver/default.json
-    COPY fork/build/build_files/config/onlyoffice/development-linux.json /etc/onlyoffice/documentserver/development-linux.json
-    COPY fork/build/build_files/config/onlyoffice/log4js/development.json /etc/onlyoffice/documentserver/log4js/development.json 
-    COPY fork/build/build_files/config/onlyoffice/local.json /etc/onlyoffice/documentserver/local.json
+    COPY fork/build/configs/onlyoffice/default.json            ${EO_CONF}/default.json
+    COPY fork/build/configs/onlyoffice/development-linux.json  ${EO_CONF}/development-linux.json
+    COPY fork/build/configs/onlyoffice/log4js/development.json ${EO_CONF}/log4js/development.json 
+    COPY fork/build/configs/onlyoffice/local.json              ${EO_CONF}/local.json
 
     ## Copy metrics config files
-    COPY fork/build/build_files/config/metrics/config/config.js /var/www/onlyoffice/documentserver/server/Metrics/config/config.js
+    COPY fork/build/configs/metrics/config/config.js ${EO_ROOT}/server/Metrics/config/config.js
 
     ## Copy nginx config files
-    COPY fork/build/build_files/config/nginx/conf.d /etc/nginx/conf.d/
-    COPY fork/build/build_files/config/nginx/includes /etc/nginx/includes/
+    COPY fork/build/configs/nginx/conf.d /etc/nginx/conf.d/
+    COPY fork/build/configs/nginx/includes /etc/nginx/includes/
 
 
     ## Copy some binaries for testing (should be removed/self-compiled in the end)
-    COPY fork/build/build_files/config/core/DoctRenderer.config /var/www/onlyoffice/documentserver/server/FileConverter/bin/DoctRenderer.config
-    COPY fork/build/build_files/config/core/cmap.bin /var/www/onlyoffice/documentserver/server/FileConverter/bin/cmap.bin
+    COPY fork/build/configs/core/DoctRenderer.config ${EO_ROOT}/server/FileConverter/bin/DoctRenderer.config
 
     ## Copy scripts
-    COPY fork/build/build_files/scripts/documentserver-flush-cache.sh /usr/bin/documentserver-flush-cache.sh
-    COPY fork/build/build_files/scripts/documentserver-generate-allfonts.sh /usr/bin/documentserver-generate-allfonts.sh
+    COPY fork/build/scripts/documentserver-flush-cache.sh /usr/bin/documentserver-flush-cache.sh
+    COPY fork/build/scripts/documentserver-generate-allfonts.sh /usr/bin/documentserver-generate-allfonts.sh
+
+    ## Copy supervisor config
+    COPY fork/build/configs/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
     RUN /usr/bin/documentserver-flush-cache.sh -r false
 
     
-    COPY fork/build/build_files/scripts/entrypoint.sh /entrypoint.sh
+    COPY fork/build/scripts/entrypoint.sh /entrypoint.sh
     RUN chmod +x /entrypoint.sh
 
     ENTRYPOINT ["/entrypoint.sh"]
+
+
+FROM finalubuntu AS develop
+    # the idea is to set up build dependencies in the from scratch 
+    # container, so that we can then mount specific components, 
+    # and run the build steps manually in the container
+    ARG PRODUCT_VERSION
+
+    # from base step
+    RUN apt update && \
+        apt install -y nodejs npm openjdk-21-jdk wget zip brotli && \
+        npm install -g @yao-pkg/pkg grunt-cli
+    
+    # from core step
+    ENV TZ=Etc/UTC
+    ENV DEBIAN_FRONTEND=noninteractive
+    ENV PLEASE_PRELOAD_LIBSTDCPP=true
+
+    RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
+        apt-get -y update && \
+        apt-get -y upgrade && \
+        apt-get -y install \
+                    git \
+                    curl \
+                    sudo \
+                    wget \
+                    ssh \
+                    build-essential \
+                    make \
+                    cmake \
+                    ninja-build \
+                    pkg-config \
+                    libglib2.0-dev \
+                    python3 \
+                    python-is-python3 \
+                    lsb-release \
+                    libboost-all-dev \
+                    && \
+        rm -rf /var/lib/apt-get/lists/*
+
+    # hardcoded for now. todo: get from whatever is defined in upstream
+    ENV PRODUCT_VERSION=${PRODUCT_VERSION}
+    ENV EO_DEV=/develop
+    ENV THEME=nextcloud
+
+    COPY fork/build/scripts/Makefile /Makefile
