@@ -4,8 +4,23 @@ on:
   push:
   workflow_dispatch:
     inputs:
-      ref:
-        description: 'Branch or tag to checkout for repositories'
+      core_branch:
+        description: 'Branch core'
+        required: false
+        default: 'fork'
+        type: string
+      sdkjs_branch:
+        description: 'Branch for sdkjs'
+        required: false
+        default: 'fork'
+        type: string
+      web_apps_branch:
+        description: 'Branch for web-apps'
+        required: false
+        default: 'fork'
+        type: string
+      server_branch:
+        description: 'Branch for server'
         required: false
         default: 'fork'
         type: string
@@ -13,7 +28,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: euro-office/documentserver
-  CHECKOUT_REF: ${{ github.event.inputs.ref || 'fork' }}
+  #CHECKOUT_REF: ${{ github.event.inputs.ref || 'fork' }}
 
 jobs:
   clone:
@@ -30,7 +45,7 @@ jobs:
         with:
           repository: euro-office/core
           path: core/
-          ref: ${{ env.CHECKOUT_REF }}
+          ref: ${{ github.event.inputs.core_branch || 'fork' }}
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
           fetch-depth: 0
 
@@ -56,7 +71,7 @@ jobs:
         with:
           repository: euro-office/sdkjs
           path: sdkjs/
-          ref: ${{ env.CHECKOUT_REF }}
+          ref: ${{ github.event.inputs.sdkjs_branch || 'fork' }}
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
 
       - name: Checkout web-apps
@@ -64,7 +79,7 @@ jobs:
         with:
           repository: euro-office/web-apps
           path: web-apps/
-          ref: ${{ env.CHECKOUT_REF }}
+          ref: ${{ github.event.inputs.web_apps_branch || 'fork' }}
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
 
       - name: Checkout server
@@ -72,7 +87,7 @@ jobs:
         with:
           repository: euro-office/server
           path: server/
-          ref: ${{ env.CHECKOUT_REF }}
+          ref: ${{ github.event.inputs.server_branch || 'fork' }}
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
 
       - name: Cache clones
