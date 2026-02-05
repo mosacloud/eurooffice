@@ -18,7 +18,8 @@ sdkjs:
 	@echo "Building sdkjs..."
 	cd $(EO_DEV)/sdkjs/build && \
 	npm install && \
-	BUILD_ROOT=$(EO_ROOT) grunt
+	BUILD_ROOT=$(EO_ROOT) grunt && \
+	/usr/bin/documentserver-generate-allfonts.sh
 
 ## -----------------
 ## CORE BUILD
