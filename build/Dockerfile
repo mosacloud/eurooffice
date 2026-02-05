@@ -84,7 +84,7 @@ FROM base AS web-apps
 
     RUN --mount=type=cache,target=/root/.npm \
         cd app/build && \
-        npm ci
+        npm install
 
 
     COPY web-apps/ /app
