@@ -28,6 +28,8 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: euro-office/documentserver
+  PRODUCT_VERSION: 9.2.1
+  BUILD_ROOT: /package
   #CHECKOUT_REF: ${{ github.event.inputs.ref || 'fork' }}
 
 jobs:
@@ -146,6 +148,9 @@ jobs:
           target: ${{ matrix.target }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
+            BUILD_ROOT=${{ env.BUILD_ROOT }}}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.target }}-buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.target }}-buildcache,mode=max
@@ -192,6 +197,9 @@ jobs:
           target: finalubuntu
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
+            BUILD_ROOT=${{ env.BUILD_ROOT }}}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:core-buildcache
@@ -243,6 +251,9 @@ jobs:
           target: develop
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
+            BUILD_ROOT=${{ env.BUILD_ROOT }}}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:final-buildcache
