@@ -8,6 +8,9 @@ services:
       dockerfile: ./fork/build/Dockerfile
       # finalubuntu for full build, or develop to add build tools to the container
       target: develop
+      args:
+        PRODUCT_VERSION: "9.2.1"
+        BUILD_ROOT: "/package"
     container_name: eo
     ports:
       - "8080:80"
