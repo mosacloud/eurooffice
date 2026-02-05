@@ -95,7 +95,6 @@ jobs:
           - sdkjs
           - web-apps
           - server
-          - develop
 
     steps:
       - name: Restore cache
