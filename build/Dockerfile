@@ -179,7 +179,8 @@ FROM ubuntu:24.04 AS finalubuntu
                 sudo \
                 gdb \
                 nginx-extras \
-                supervisor
+                supervisor \
+                jq
     
     ## Copy the table scheme for postgres
     COPY fork/build/configs/postgres ${EO_ROOT}/server/schema/postgresql
