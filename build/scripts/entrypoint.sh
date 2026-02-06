@@ -23,6 +23,12 @@ jq_filter='.'
 [ -n "$DB_PASSWORD" ] && \
   jq_filter="$jq_filter | .services.CoAuthoring.sql.dbPass = \$dbPassword"
 
+[ -n "$USE_UNAUTHORIZED_STORAGE" ] && \
+  jq_filter="$jq_filter | .services.CoAuthoring.requestDefaults.rejectUnauthorized = false"
+
+[ -n "$ALLOW_PRIVATE_IP_ADDRESS" ] && \
+  jq_filter="$jq_filter | .services.CoAuthoring[\"request-filtering-agent\"].allowPrivateIPAddress = true"
+
 if [ "$jq_filter" != "." ]; then
   jq \
     --arg jwtSecret "$JWT_SECRET" \
