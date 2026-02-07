@@ -14,7 +14,7 @@ FROM debian:trixie AS base
 
 #### CORE ####
 FROM ubuntu AS core
-    ARG BUILD_ROOT
+    ARG BUILD_ROOT=/package
 
     ENV TZ=Etc/UTC
     ENV DEBIAN_FRONTEND=noninteractive
@@ -58,7 +58,7 @@ EOF
 #### SDKJS ####
 FROM base AS sdkjs
 
-    ARG BUILD_ROOT
+    ARG BUILD_ROOT=/package
 
     COPY sdkjs/build/package*.json /app/build/
 
@@ -76,7 +76,7 @@ FROM base AS sdkjs
 #### WEB-APPS ####
 FROM base AS web-apps
     ARG PRODUCT_VERSION
-    ARG BUILD_ROOT
+    ARG BUILD_ROOT=/package
 
     COPY web-apps/build/package*.json /app/build/
     COPY web-apps/build/sprites/package*.json /app/build/sprites/
@@ -98,7 +98,7 @@ FROM base AS web-apps
 #### SERVER-BASE ####
 FROM base AS server
     ARG PRODUCT_VERSION
-    ARG BUILD_ROOT
+    ARG BUILD_ROOT=/package
 
     ENV PRODUCT_VERSION=${PRODUCT_VERSION}
 
@@ -158,7 +158,7 @@ FROM base AS server
 #### FINAL UBUNTU ####
 FROM ubuntu:24.04 AS finalubuntu
     ARG PRODUCT_VERSION
-    ARG BUILD_ROOT
+    ARG BUILD_ROOT=/package
 
     ARG EO_ROOT=/var/www/onlyoffice/documentserver
     ARG EO_LOG=/var/log/onlyoffice/documentserver
