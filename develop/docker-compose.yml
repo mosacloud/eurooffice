@@ -19,7 +19,8 @@ services:
       USE_UNAUTHORIZED_STORAGE: true
       JWT_SECRET: secret
     volumes:
-      - ../..:/develop:ro # mounts deployed files to application
+      - ../..:/develop # mounts deployed files to application
+      - ./setup/Makefile:/Makefile # mounts deployed files to application
   nextcloud:
     image: nextcloud:latest
     container_name: nextcloud
@@ -27,7 +28,7 @@ services:
       - "8081:80"
     volumes:
       - /var/www/html
-      - ./enable-office.sh:/docker-entrypoint-hooks.d/post-installation/enable-office.sh:ro
+      - ./setup/enable-office.sh:/docker-entrypoint-hooks.d/post-installation/enable-office.sh:ro
     environment:
       NEXTCLOUD_TRUSTED_DOMAINS: 172.18.0.1 
       SQLITE_DATABASE: nextcloud

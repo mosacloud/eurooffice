@@ -298,5 +298,3 @@ FROM finalubuntu AS develop
     ENV PRODUCT_VERSION=${PRODUCT_VERSION}
     ENV EO_DEV=/develop
     ENV THEME=nextcloud
-
-    COPY fork/build/scripts/Makefile /Makefile
