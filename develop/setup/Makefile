@@ -144,4 +144,4 @@ server/adminp/cli: server/common
 	@echo "Building server/adminpanel/client with flags $(CFLAGS)"
 	cd $(EO_DEV)/server/AdminPanel/client && \
 	npm install && \
-	BUILD_ROOT=$(EO_ROOT) npm run build $(CFLAGS)
+	BUILD_ROOT=$(EO_ROOT)/server/AdminPanel/client npm run build $(CFLAGS)
