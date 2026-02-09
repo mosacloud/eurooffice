@@ -2,12 +2,15 @@ name: Euro-Office development environment
 
 services:
   eo:
-    image: ghcr.io/euro-office/documentserver:latest
+    image: ghcr.io/euro-office/documentserver:latest-dev
     build:
       context: ../../
       dockerfile: ./fork/build/Dockerfile
-      # finalupstream for full build, or develop to add build tools to the container
+      # finalubuntu for full build, or develop to add build tools to the container
       target: develop
+      args:
+        PRODUCT_VERSION: "9.2.1"
+        BUILD_ROOT: "/package"
     container_name: eo
     ports:
       - "8080:80"
@@ -16,10 +19,8 @@ services:
       USE_UNAUTHORIZED_STORAGE: true
       JWT_SECRET: secret
     volumes:
-    # Those volumes can be used to override built-in components with local versions for development purposes
-      - ../../web-apps:/var/www/onlyoffice/web-apps-develop # dev folder, run builds in here
-      - ../../web-apps/deploy/web-apps:/var/www/onlyoffice/documentserver/web-apps:ro # mounts deployed files to application
-    #  - ../../sdkjs/deploy/sdkjs:/var/www/onlyoffice/documentserver/sdkjs:ro
+      - ../..:/develop # mounts deployed files to application
+      - ./setup/Makefile:/Makefile # mounts deployed files to application
   nextcloud:
     image: nextcloud:latest
     container_name: nextcloud
@@ -27,7 +28,7 @@ services:
       - "8081:80"
     volumes:
       - /var/www/html
-      - ./enable-office.sh:/docker-entrypoint-hooks.d/post-installation/enable-office.sh:ro
+      - ./setup/enable-office.sh:/docker-entrypoint-hooks.d/post-installation/enable-office.sh:ro
     environment:
       NEXTCLOUD_TRUSTED_DOMAINS: 172.18.0.1 
       SQLITE_DATABASE: nextcloud

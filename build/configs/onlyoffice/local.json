@@ -41,8 +41,12 @@
         }
       },
       "requestDefaults": {
-        "rejectUnauthorized": false
+        "rejectUnauthorized": true
+      },
+      "request-filtering-agent": {
+        "allowPrivateIPAddress": false
       }
+
     }
   }
 }

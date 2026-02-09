@@ -12,6 +12,11 @@ export LD_LIBRARY_PATH=/var/www/onlyoffice/documentserver/server/FileConverter/b
 #Start generate AllFonts.js, font thumbnails and font_selection.bin
 echo -n Generating AllFonts.js, please wait...
 
+rm -r $DIR/fonts
+rm $DIR/sdkjs/common/AllFonts.js
+rm $DIR/server/FileConverter/bin/AllFonts.js
+rm $DIR/server/FileConverter/bin/font_selection.bin
+mkdir $DIR/fonts
 
 "$DIR/server/tools/allfontsgen"\
   --input="$DIR/core-fonts"\

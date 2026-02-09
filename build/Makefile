@@ -1,6 +1,6 @@
 .PHONY: build-image
 build-image:
-	@docker build -t euro-office/documentserver --target finalupstream -f ./Dockerfile ../../
+	@docker build -t euro-office/documentserver:latest --build-arg PRODUCT_VERSION=9.2.1 --build-arg BUILD_ROOT=/package --target finalubuntu -f ./Dockerfile ../../
 
 DEPLOY ?= deploy/
 
@@ -12,18 +12,13 @@ docker-target:
 		echo "ERROR: TARGET is not set. Usage: make docker-target TARGET=<stage>"; \
 		exit 1; \
 	fi
-	@docker build -t euro-office/documentserver --target $(TARGET) -o $(DEPLOY) -f ./Dockerfile ../../
+	@docker build -t euro-office/documentserver:latest --build-arg PRODUCT_VERSION=9.2.1 --build-arg BUILD_ROOT=/package  --target $(TARGET) -o $(DEPLOY) -f ./Dockerfile ../../
 
 .PHONY: build
 build:
-	@docker build --target output -t euro-office/documentserver -o output -f ./Dockerfile ../../
+	@docker build -t euro-office/documentserver:latest --build-arg PRODUCT_VERSION=9.2.1 --build-arg BUILD_ROOT=/package --target develop -f ./Dockerfile ../../
 
 .PHONY: run
 run: build-image
 	@docker run -it --rm -p 8080:80 euro-office/documentserver bash
 
-.PHONY: report
-report: build-image
-	@docker run --rm --entrypoint "" euro-office/documentserver bash -c 'find /var/www/onlyoffice -type f -exec sha256sum {} \;' > /tmp/ours.txt
-	@docker run --rm --entrypoint "" onlyoffice/documentserver bash -c 'find /var/www/onlyoffice -type f -exec sha256sum {} \;' > /tmp/theirs.txt
-	@diff /tmp/ours.txt /tmp/theirs.txt || true
