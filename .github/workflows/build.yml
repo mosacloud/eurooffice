@@ -30,67 +30,44 @@ env:
   IMAGE_NAME: euro-office/documentserver
   PRODUCT_VERSION: 9.2.1
   BUILD_ROOT: /package
-  #CHECKOUT_REF: ${{ github.event.inputs.ref || 'fork' }}
 
 jobs:
   clone:
     runs-on: self-hosted
     steps:
-      - name: Checkout fork repository
+      - name: Checkout fork repository (with submodules)
         uses: actions/checkout@v6
         with:
+          path: .
           submodules: recursive
-          path: fork/
-
-      - name: Checkout core
-        uses: actions/checkout@v6
-        with:
-          repository: euro-office/core
-          path: core/
-          ref: ${{ github.event.inputs.core_branch || 'fork' }}
-          token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
-          fetch-depth: 0
-
-      - name: Checkout core-fonts
-        uses: actions/checkout@v6
-        with:
-          repository: euro-office/core-fonts
-          path: core-fonts/
-          ref: ${{ env.CHECKOUT_REF }}
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
 
-      - name: Checkout sdkjs-plugins
-        uses: actions/checkout@v6
-        if: false
-        with:
-          repository: euro-office/onlyoffice.github.io
-          path: onlyoffice.github.io/
-          ref: master
-          token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+      - name: Align submodules to requested branches
+        shell: bash
+        env:
+          CORE_BRANCH:   ${{ github.event.inputs.core_branch || 'fork' }}
+          SDKJS_BRANCH:  ${{ github.event.inputs.sdkjs_branch || 'fork' }}
+          WEBAPPS_BRANCH:${{ github.event.inputs.web_apps_branch || 'fork' }}
+          SERVER_BRANCH: ${{ github.event.inputs.server_branch || 'fork' }}
+        run: |
+          set -euo pipefail
 
-      - name: Checkout sdkjs
-        uses: actions/checkout@v6
-        with:
-          repository: euro-office/sdkjs
-          path: sdkjs/
-          ref: ${{ github.event.inputs.sdkjs_branch || 'fork' }}
-          token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+          # Helper that checks out a branch inside a submodule
+          checkout_submodule() {
+            local path=$1
+            local branch=$2
+            echo "🔧 Updating $path → $branch"
+            pushd "$path" > /dev/null
+            git fetch origin "${branch}:${branch}"   # ensure the branch exists locally
+            git checkout "$branch"
+            popd > /dev/null
+          }
 
-      - name: Checkout web-apps
-        uses: actions/checkout@v6
-        with:
-          repository: euro-office/web-apps
-          path: web-apps/
-          ref: ${{ github.event.inputs.web_apps_branch || 'fork' }}
-          token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
-
-      - name: Checkout server
-        uses: actions/checkout@v6
-        with:
-          repository: euro-office/server
-          path: server/
-          ref: ${{ github.event.inputs.server_branch || 'fork' }}
-          token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+          checkout_submodule core           "$CORE_BRANCH"
+          checkout_submodule core-fonts    "$CORE_BRANCH"   # core‑fonts follows the same branch as core in your original file
+          checkout_submodule sdkjs         "$SDKJS_BRANCH"
+          checkout_submodule web-apps      "$WEBAPPS_BRANCH"
+          checkout_submodule server        "$SERVER_BRANCH"
 
       - name: Checkout dictionaries
         uses: actions/checkout@v6

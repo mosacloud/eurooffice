@@ -1,0 +1,15 @@
+[submodule "server"]
+	path = server
+	url = git@github.com:Euro-Office/server.git
+[submodule "web-apps"]
+	path = web-apps
+	url = git@github.com:Euro-Office/web-apps.git
+[submodule "sdkjs"]
+	path = sdkjs
+	url = git@github.com:Euro-Office/sdkjs.git
+[submodule "core-fonts"]
+	path = core-fonts
+	url = git@github.com:Euro-Office/core-fonts.git
+[submodule "core"]
+	path = core
+	url = git@github.com:Euro-Office/core.git
