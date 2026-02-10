@@ -224,7 +224,7 @@ FROM ubuntu:24.04 AS finalubuntu
                 jq
     
     ## Copy the table scheme for postgres
-    COPY fork/build/configs/postgres ${EO_ROOT}/server/schema/postgresql
+    COPY build/configs/postgres ${EO_ROOT}/server/schema/postgresql
 
     ## Configure Postgres Server
     RUN service postgresql start && \
@@ -265,33 +265,33 @@ FROM ubuntu:24.04 AS finalubuntu
     COPY core-fonts ${EO_ROOT}/core-fonts
 
     ## Copy onlyoffice config files
-    COPY fork/build/configs/onlyoffice/default.json            ${EO_CONF}/default.json
-    COPY fork/build/configs/onlyoffice/development-linux.json  ${EO_CONF}/development-linux.json
-    COPY fork/build/configs/onlyoffice/log4js/development.json ${EO_CONF}/log4js/development.json 
-    COPY fork/build/configs/onlyoffice/local.json              ${EO_CONF}/local.json
+    COPY build/configs/onlyoffice/default.json            ${EO_CONF}/default.json
+    COPY build/configs/onlyoffice/development-linux.json  ${EO_CONF}/development-linux.json
+    COPY build/configs/onlyoffice/log4js/development.json ${EO_CONF}/log4js/development.json 
+    COPY build/configs/onlyoffice/local.json              ${EO_CONF}/local.json
 
     ## Copy metrics config files
-    COPY fork/build/configs/metrics/config/config.js ${EO_ROOT}/server/Metrics/config/config.js
+    COPY build/configs/metrics/config/config.js ${EO_ROOT}/server/Metrics/config/config.js
 
     ## Copy nginx config files
-    COPY fork/build/configs/nginx/conf.d /etc/nginx/conf.d/
-    COPY fork/build/configs/nginx/includes /etc/nginx/includes/
+    COPY build/configs/nginx/conf.d /etc/nginx/conf.d/
+    COPY build/configs/nginx/includes /etc/nginx/includes/
 
 
     ## Copy some binaries for testing (should be removed/self-compiled in the end)
-    COPY fork/build/configs/core/DoctRenderer.config ${EO_ROOT}/server/FileConverter/bin/DoctRenderer.config
+    COPY build/configs/core/DoctRenderer.config ${EO_ROOT}/server/FileConverter/bin/DoctRenderer.config
 
     ## Copy scripts
-    COPY fork/build/scripts/documentserver-flush-cache.sh /usr/bin/documentserver-flush-cache.sh
-    COPY fork/build/scripts/documentserver-generate-allfonts.sh /usr/bin/documentserver-generate-allfonts.sh
+    COPY build/scripts/documentserver-flush-cache.sh /usr/bin/documentserver-flush-cache.sh
+    COPY build/scripts/documentserver-generate-allfonts.sh /usr/bin/documentserver-generate-allfonts.sh
 
     ## Copy supervisor config
-    COPY fork/build/configs/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+    COPY build/configs/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
     RUN /usr/bin/documentserver-flush-cache.sh -r false
 
     
-    COPY fork/build/scripts/entrypoint.sh /entrypoint.sh
+    COPY build/scripts/entrypoint.sh /entrypoint.sh
     RUN chmod +x /entrypoint.sh
 
     ENTRYPOINT ["/entrypoint.sh"]

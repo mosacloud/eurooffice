@@ -45,10 +45,10 @@ jobs:
       - name: Align submodules to requested branches
         shell: bash
         env:
-          CORE_BRANCH:   ${{ github.event.inputs.core_branch || 'fork' }}
-          SDKJS_BRANCH:  ${{ github.event.inputs.sdkjs_branch || 'fork' }}
-          WEBAPPS_BRANCH:${{ github.event.inputs.web_apps_branch || 'fork' }}
-          SERVER_BRANCH: ${{ github.event.inputs.server_branch || 'fork' }}
+          CORE_BRANCH:    ${{ github.event.inputs.core_branch || 'fork' }}
+          SDKJS_BRANCH:   ${{ github.event.inputs.sdkjs_branch || 'fork' }}
+          WEBAPPS_BRANCH: ${{ github.event.inputs.web_apps_branch || 'fork' }}
+          SERVER_BRANCH:  ${{ github.event.inputs.server_branch || 'fork' }}
         run: |
           set -euo pipefail
 
@@ -63,19 +63,12 @@ jobs:
             popd > /dev/null
           }
 
-          checkout_submodule core           "$CORE_BRANCH"
+          checkout_submodule core          "$CORE_BRANCH"
           checkout_submodule core-fonts    "$CORE_BRANCH"   # core‑fonts follows the same branch as core in your original file
           checkout_submodule sdkjs         "$SDKJS_BRANCH"
           checkout_submodule web-apps      "$WEBAPPS_BRANCH"
           checkout_submodule server        "$SERVER_BRANCH"
-
-      - name: Checkout dictionaries
-        uses: actions/checkout@v6
-        with:
-          repository: euro-office/dictionaries
-          path: dictionaries/
-          ref: 'master'
-          token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+          checkout_submodule dictionaries  "master"
 
       - name: Checkout dictionaries
         uses: actions/checkout@v6
