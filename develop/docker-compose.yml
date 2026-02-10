@@ -3,6 +3,7 @@ name: Euro-Office development environment
 services:
   eo:
     image: ghcr.io/euro-office/documentserver:latest-dev
+    platform: linux/amd64
     build:
       context: ../../
       dockerfile: ./fork/build/Dockerfile
