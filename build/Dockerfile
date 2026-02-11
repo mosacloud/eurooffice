@@ -3,6 +3,7 @@
 FROM onlyoffice/documentserver:latest AS upstream
 
 ARG BUILD_ROOT=/package
+ARG TARGETARCH
 
 #### BASE ####
 FROM ubuntu:24.04 AS base
@@ -49,11 +50,11 @@ FROM ubuntu AS core-amd64
 
     ENV BUILD_ROOT=${BUILD_ROOT}
 
-    RUN --mount=type=cache,target=/build-cache <<EOF
-        cd /build-cache
-        cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" -DCMAKE_C_FLAGS_DEBUG="-g -O0" -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT}/bin -DEO_CORE_TOOLS_DIR=${BUILD_ROOT}/tools /core
+    # Build core without cache mount to avoid V8 gclient sync lock contention issues
+    RUN mkdir -p ${BUILD_ROOT} && cd ${BUILD_ROOT} && \
+        mkdir -p third_party workdir build && \
+        cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" -DCMAKE_C_FLAGS_DEBUG="-g -O0" -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT}/bin -DEO_CORE_TOOLS_DIR=${BUILD_ROOT}/tools /core && \
         cmake --build .
-EOF
 
 #### CORE (use upstream binaries on arm64 — V8's bundled clang can't run under QEMU) ####
 FROM upstream AS core-arm64
@@ -122,6 +123,8 @@ FROM base AS web-apps
         cd app/build && \
         npm install
 
+    # Install imagemin optional dependencies with system dependencies
+    RUN npm install --save-dev imagemin-gifsicle imagemin-jpegtran imagemin-optipng imagemin-svgo || true
 
     COPY web-apps/ /app
 
@@ -130,7 +133,7 @@ FROM base AS web-apps
 
     ARG TARGETARCH
     RUN cd app/build && \
-        THEME=nextcloud grunt $(if [ "$TARGETARCH" = "arm64" ]; then echo "--skip-imagemin"; fi)
+        THEME=nextcloud grunt --force $(if [ "$TARGETARCH" = "arm64" ]; then echo "--skip-imagemin"; fi)
 
 #### SERVER ####
 FROM base AS server
@@ -173,7 +176,8 @@ FROM base AS server
     COPY server/ /server
 
     ENV BUILD_ROOT=${BUILD_ROOT}
-
+    ARG TARGETARCH
+    # Note: TARGETARCH is set at top of Dockerfile and inherited by this stage
     RUN cd /server/Common && \
         sed "s|\(const buildVersion = \).*|\1'${PRODUCT_VERSION}';|" -i sources/commondefines.js
 
