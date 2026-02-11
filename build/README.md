@@ -78,7 +78,7 @@ Use `CFLAGS` to pass additional flags
 ```sh
 THEME=nextcloud make web-apps-dev CFLAGS="--skip-imagemin"
 ````
-> The preconfigured builds clear the cache, this does not.
+> The make build commands clear the cache, this does not.
 > Therefore you must run `/usr/bin/documentserver-flush-cache.sh`
 
 ### sdkjs
