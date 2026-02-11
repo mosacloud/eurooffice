@@ -4,7 +4,10 @@ all: web-apps sdkjs core server #core/wasm
 CORE_FLAGS    := -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" -DCMAKE_C_FLAGS_DEBUG="-g -O0"
 SERVER_FLAGS  :=
 SDKJS_FLAGS   :=
+CC_PLATFORM   ?= $(shell $(EO_DEV)/sdkjs/build/node_modules/google-closure-compiler-linux/compiler --version >/dev/null 2>&1 && echo "native,java" || echo "java")
 WEBAPPS_FLAGS :=
+
+CHECK_WEBAPPS_DEPS = @test -d $(EO_DEV)/web-apps/build/node_modules || { echo "Run 'make web-apps' first to install dependencies"; exit 1; }
 
 sdkjs:    DEBUG_FLAGS = $(SDKJS_FLAGS)
 
@@ -32,7 +35,20 @@ web-apps:
 	@echo "Building web-apps with flags $(CFLAGS)"
 	cd $(EO_DEV)/web-apps/build && \
 	npm ci && \
-	BUILD_ROOT=$(EO_ROOT) grunt $(CFLAGS)
+	BUILD_ROOT=$(EO_ROOT) grunt $(CFLAGS) && \
+	/usr/bin/documentserver-flush-cache.sh
+
+web-apps-dev:
+	$(CHECK_WEBAPPS_DEPS)
+	cd $(EO_DEV)/web-apps/build && \
+	BUILD_ROOT=$(EO_ROOT) grunt --skip-imagemin --skip-babel $(CFLAGS) && \
+	/usr/bin/documentserver-flush-cache.sh
+
+web-dev-nx:
+	$(CHECK_WEBAPPS_DEPS)
+	cd $(EO_DEV)/web-apps/build && \
+	THEME=nextcloud BUILD_ROOT=$(EO_ROOT) grunt --skip-imagemin --skip-babel $(CFLAGS) && \
+	/usr/bin/documentserver-flush-cache.sh
 
 ## -----------------
 ## SDKJS BUILD
@@ -42,8 +58,9 @@ sdkjs:
 	@echo "Building sdkjs with flags $(CFLAGS)"
 	cd $(EO_DEV)/sdkjs/build && \
 	npm install && \
-	BUILD_ROOT=$(EO_ROOT) grunt $(CFLAGS) && \
+	CC_PLATFORM=$(CC_PLATFORM) BUILD_ROOT=$(EO_ROOT) grunt $(CFLAGS) && \
 	/usr/bin/documentserver-generate-allfonts.sh
+
 
 ## -----------------
 ## CORE BUILD
