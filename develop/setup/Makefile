@@ -9,6 +9,14 @@ WEBAPPS_FLAGS :=
 
 CHECK_WEBAPPS_DEPS = @test -d $(EO_DEV)/web-apps/build/node_modules || { echo "Run 'make web-apps' first to install dependencies"; exit 1; }
 
+# Dev-friendly cache flush: regenerate nginx cache tag and reload, without
+# the production-only api.js.tpl copy and ds:ds chown from the upstream script.
+define FLUSH_CACHE
+	@HASH=$$(date +'%Y.%m.%d-%H%M' | openssl md5 | awk '{print $$2}'); \
+	echo "set \$$cache_tag \"$$HASH\";" > /etc/nginx/includes/ds-cache.conf; \
+	service nginx reload
+endef
+
 sdkjs:    DEBUG_FLAGS = $(SDKJS_FLAGS)
 
 
@@ -35,20 +43,20 @@ web-apps:
 	@echo "Building web-apps with flags $(CFLAGS)"
 	cd $(EO_DEV)/web-apps/build && \
 	npm ci && \
-	BUILD_ROOT=$(EO_ROOT) grunt $(CFLAGS) && \
-	/usr/bin/documentserver-flush-cache.sh
+	BUILD_ROOT=$(EO_ROOT) grunt $(CFLAGS)
+	$(FLUSH_CACHE)
 
 web-apps-dev:
 	$(CHECK_WEBAPPS_DEPS)
 	cd $(EO_DEV)/web-apps/build && \
-	BUILD_ROOT=$(EO_ROOT) grunt --skip-imagemin --skip-babel $(CFLAGS) && \
-	/usr/bin/documentserver-flush-cache.sh
+	BUILD_ROOT=$(EO_ROOT) grunt --skip-imagemin --skip-babel $(CFLAGS)
+	$(FLUSH_CACHE)
 
 web-dev-nx:
 	$(CHECK_WEBAPPS_DEPS)
 	cd $(EO_DEV)/web-apps/build && \
-	THEME=nextcloud BUILD_ROOT=$(EO_ROOT) grunt --skip-imagemin --skip-babel $(CFLAGS) && \
-	/usr/bin/documentserver-flush-cache.sh
+	THEME=nextcloud BUILD_ROOT=$(EO_ROOT) grunt --skip-imagemin --skip-babel $(CFLAGS)
+	$(FLUSH_CACHE)
 
 ## -----------------
 ## SDKJS BUILD
