@@ -56,3 +56,48 @@ The docker compose environment in this directory allows to run document server b
     - WEBAPPS_FLAGS
 
   then build with DEBUG=1, e.g. make sdkjs DEBUG=1
+
+## Development Builds
+
+Once inside the container (`docker exec -it eo bash`), the following make targets are available:
+
+### web-apps
+
+
+#### Full web-apps build
+
+includes npm ci, **run this first**
+
+```sh
+make web-apps
+```
+
+#### Quick rebuild
+without npm ci, imagemin, or babel
+
+```sh
+make web-apps-dev
+```
+
+#### Quick rebuild with Nextcloud theme
+
+```sh
+make web-dev-nx
+````
+
+#### Custom build
+Use `CFLAGS` to pass additional flags
+
+```sh
+THEME=nextcloud make web-apps-dev CFLAGS="--skip-imagemin"
+````
+> The make build commands clear the cache, this does not.
+> Therefore you must run `/usr/bin/documentserver-flush-cache.sh`
+
+### sdkjs
+
+#### Full sdkjs build
+includes npm install + closure compiler + allfontsgen
+```shell
+make sdkjs
+````
