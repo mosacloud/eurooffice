@@ -1,3 +1,5 @@
+SHELL := /bin/bash
+
 all: web-apps sdkjs core server #core/wasm
 
 
@@ -95,9 +97,40 @@ core/docbuilder:
 	cmake -GNinja $(BUILD_FLAGS) $(CFLAGS) $(EO_DEV)/core/DesktopEditor/doctrenderer/app_builder && \
 	cmake --build .
 
-core/wasm:
-	@echo "Error: this option is not supported yet"
-	@exit 1
+core/wasm/font:
+	@echo "Building core/wasm/fonts with flags $(CFLAGS)"
+	mkdir -p /build/wasm/font
+	cd /build/wasm/font && \
+	source /opt/emsdk/emsdk_env.sh && emcmake cmake -DEO_CORE_3RD_PARTY_DIR=/build/3rdParty -DEO_CORE_OUTPUT_DIR=$(EO_DEV)/sdkjs/common $(EO_DEV)/core/DesktopEditor/fontengine/js && cmake --build .
+	@$(MAKE) sdkjs
+
+core/wasm/spell:
+	@echo "Building core/wasm/spell with flags $(CFLAGS)"
+	mkdir -p /build/wasm/spell
+	cd /build/wasm/spell && \
+	source /opt/emsdk/emsdk_env.sh && emcmake cmake -DEO_CORE_3RD_PARTY_DIR=/build/3rdParty -DEO_CORE_OUTPUT_DIR=$(EO_DEV)/sdkjs/common $(EO_DEV)/core/Common/3dParty/hunspell && cmake --build .
+	@$(MAKE) sdkjs
+
+core/wasm/zlib:
+	@echo "Building core/wasm/zlib with flags $(CFLAGS)"
+	mkdir -p /build/wasm/zlib
+	cd /build/wasm/zlib && \
+	source /opt/emsdk/emsdk_env.sh && emcmake cmake -DEO_CORE_3RD_PARTY_DIR=/build/3rdParty -DEO_CORE_OUTPUT_DIR=$(EO_DEV)/sdkjs/common $(EO_DEV)/core/OfficeUtils/js && cmake --build .
+	@$(MAKE) sdkjs
+
+core/wasm/hash:
+	@echo "Building core/wasm/hash with flags $(CFLAGS)"
+	mkdir -p /build/wasm/hash
+	cd /build/wasm/hash && \
+	source /opt/emsdk/emsdk_env.sh && emcmake cmake -DEO_CORE_3RD_PARTY_DIR=/build/3rdParty -DEO_CORE_OUTPUT_DIR=$(EO_DEV)/sdkjs/common $(EO_DEV)/core/DesktopEditor/xmlsec/src/wasm/hash && cmake --build .
+	@$(MAKE) sdkjs
+
+core/wasm/draw:
+	@echo "Building core/wasm/draw with flags $(CFLAGS)"
+	mkdir -p /build/wasm/draw
+	cd /build/wasm/draw && \
+	source /opt/emsdk/emsdk_env.sh && emcmake cmake -DEO_CORE_3RD_PARTY_DIR=/build/3rdParty -DEO_CORE_OUTPUT_DIR=$(EO_DEV)/sdkjs/pdf/src/ $(EO_DEV)/core/DesktopEditor/graphics/pro/js && cmake --build .
+	@$(MAKE) sdkjs
 
 ## -----------------
 ## SERVER BUILD

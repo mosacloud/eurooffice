@@ -55,7 +55,7 @@ EOF
 
 #### CORE WASM ####
 FROM ubuntu:24.04 AS core-wasm 
-    ARG BUILD_ROOT
+    ARG BUILD_ROOT=/package
 
     ## Install Dependencies
     RUN apt-get -y update && \
@@ -88,16 +88,10 @@ FROM ubuntu:24.04 AS core-wasm
 
     COPY core /core
 
-    RUN --mount=type=cache,target=/build-cache <<EOF
-        cd /build-cache
-        /bin/bash -c "source /opt/emsdk/emsdk_env.sh && emcmake cmake /core && cmake --build ."
-        mkdir -p ${BUILD_ROOT}
-        cp -r /build-cache/package/* ${BUILD_ROOT}/
+    RUN --mount=type=cache,target=/build-cache1 <<EOF
+        cd /build-cache1
+        /bin/bash -c "source /opt/emsdk/emsdk_env.sh && emcmake cmake -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT} /core/DesktopEditor/fontengine/js && cmake --build ."
 EOF
-
-
-
-   
 
 #### SDKJS ####
 FROM base AS sdkjs
@@ -113,6 +107,13 @@ FROM base AS sdkjs
     COPY sdkjs/ /app
 
     ENV BUILD_ROOT=${BUILD_ROOT}
+
+    ## Copy core wasm builds
+    #COPY --from=core-wasm ${BUILD_ROOT}/drawingfile/* /var/www/onlyoffice/documentserver/sdkjs/pdf/src/engine
+    #COPY --from=core-wasm ${BUILD_ROOT}/zlib/* /var/www/onlyoffice/documentserver/sdkjs/common/zlib/engine
+    #COPY --from=core-wasm ${BUILD_ROOT}/engine/* /var/www/onlyoffice/documentserver/sdkjs/common/hash/hash
+    #COPY --from=core-wasm ${BUILD_ROOT}/spell/* /var/www/onlyoffice/documentserver/sdkjs/common/spell/spell
+    #COPY --from=core-wasm ${BUILD_ROOT}/fonts/* /var/www/onlyoffice/documentserver/sdkjs/common/libfont
 
     RUN cd app/build && \
         grunt
@@ -251,22 +252,7 @@ FROM ubuntu:24.04 AS finalubuntu
 
     ## Copy core builds
     COPY --from=core ${BUILD_ROOT}/bin/* ${EO_ROOT}/server/FileConverter/bin/
-    COPY --from=core ${BUILD_ROOT}/tools/* ${EO_ROOT}/server/tools/
-
-    ## Copy core wasm builds
-    #COPY --from=core-wasm ${BUILD_ROOT}/drawingfile/* /var/www/onlyoffice/documentserver/sdkjs/pdf/src/engine
-    #COPY --from=core-wasm ${BUILD_ROOT}/zlib/* /var/www/onlyoffice/documentserver/sdkjs/common/zlib/engine
-    #COPY --from=core-wasm ${BUILD_ROOT}/engine/* /var/www/onlyoffice/documentserver/sdkjs/common/hash/hash
-    #COPY --from=core-wasm ${BUILD_ROOT}/spell/* /var/www/onlyoffice/documentserver/sdkjs/common/spell/spell
-    #COPY --from=core-wasm ${BUILD_ROOT}/fonts/* /var/www/onlyoffice/documentserver/sdkjs/common/libfont/engine
-
-    # Delete wasm files to see what breaks
-    RUN rm /var/www/onlyoffice/documentserver/sdkjs/pdf/src/engine/drawingfile.wasm && \
-        rm /var/www/onlyoffice/documentserver/sdkjs/common/zlib/engine/zlib.wasm && \
-        rm /var/www/onlyoffice/documentserver/sdkjs/common/hash/hash/engine.wasm && \
-        rm /var/www/onlyoffice/documentserver/sdkjs/common/spell/spell/spell.wasm 
-        # rm /var/www/onlyoffice/documentserver/sdkjs/common/libfont/engine/fonts.wasm
-
+    COPY --from=core ${BUILD_ROOT}/tools/* ${EO_ROOT}/server/tools/        
 
     ## Copy dictionary
     COPY dictionaries /var/www/onlyoffice/documentserver/dictionaries
@@ -349,8 +335,23 @@ FROM finalubuntu AS develop
                     python-is-python3 \
                     lsb-release \
                     libboost-all-dev \
+                    tar \
+                    xz-utils \
+                    libtool-bin \
+                    autoconf \
+                    python3-dev \
                     && \
         rm -rf /var/lib/apt-get/lists/*
+
+    ## Install Emscripten
+    RUN wget -qO emsdk.tar.gz https://github.com/emscripten-core/emsdk/archive/main.tar.gz && \
+        mkdir /opt/emsdk && \
+        tar xf emsdk.tar.gz --strip-components=1 -C /opt/emsdk && \
+        /opt/emsdk/emsdk install latest && \
+        /opt/emsdk/emsdk activate latest && \
+        chmod +x /opt/emsdk/emsdk_env.sh && \
+        /bin/bash -c "source /opt/emsdk/emsdk_env.sh" && \
+        rm -rf emsdk.tar.gz
 
     # hardcoded for now. todo: get from whatever is defined in upstream
     ENV PRODUCT_VERSION=${PRODUCT_VERSION}
