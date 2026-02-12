@@ -69,7 +69,6 @@ sdkjs:
 	CC_PLATFORM=$(CC_PLATFORM) BUILD_ROOT=$(EO_ROOT) grunt $(CFLAGS) && \
 	/usr/bin/documentserver-generate-allfonts.sh
 
-
 ## -----------------
 ## CORE BUILD
 ## -----------------
