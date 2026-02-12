@@ -49,12 +49,6 @@ web-apps:
 web-apps-dev:
 	$(CHECK_WEBAPPS_DEPS)
 	cd $(EO_DEV)/web-apps/build && \
-	BUILD_ROOT=$(EO_ROOT) grunt --skip-imagemin --skip-babel $(CFLAGS)
-	$(FLUSH_CACHE)
-
-web-dev-nx:
-	$(CHECK_WEBAPPS_DEPS)
-	cd $(EO_DEV)/web-apps/build && \
 	THEME=nextcloud BUILD_ROOT=$(EO_ROOT) grunt --skip-imagemin --skip-babel $(CFLAGS)
 	$(FLUSH_CACHE)
 
