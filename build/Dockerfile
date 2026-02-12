@@ -12,8 +12,8 @@ FROM debian:trixie AS base
 
 
 
-#### CORE ####
-FROM ubuntu AS core
+#### CORE (built from source on amd64) ####
+FROM ubuntu AS core-amd64
     ARG BUILD_ROOT=/package
 
     ENV TZ=Etc/UTC
@@ -55,6 +55,15 @@ FROM ubuntu AS core
         cp -r /build-cache/package/* ${BUILD_ROOT}/
 EOF
 
+#### CORE (use upstream binaries on arm64 — V8's bundled clang can't run under QEMU) ####
+FROM upstream AS core-arm64
+    ARG BUILD_ROOT=/package
+    RUN mkdir -p ${BUILD_ROOT} && \
+        cp -a /var/www/onlyoffice/documentserver/server/FileConverter/bin/* ${BUILD_ROOT}/ && \
+        cp -a /var/www/onlyoffice/documentserver/server/tools/* ${BUILD_ROOT}/
+
+FROM core-${TARGETARCH} AS core
+
 #### SDKJS ####
 FROM base AS sdkjs
 
@@ -70,8 +79,9 @@ FROM base AS sdkjs
 
     ENV BUILD_ROOT=${BUILD_ROOT}
 
+    ARG TARGETARCH
     RUN cd app/build && \
-        grunt
+        CC_PLATFORM=$(if [ "$TARGETARCH" = "arm64" ]; then echo "java"; else echo "native,java"; fi) grunt
 
 #### WEB-APPS ####
 FROM base AS web-apps
@@ -92,13 +102,15 @@ FROM base AS web-apps
     ENV PRODUCT_VERSION=${PRODUCT_VERSION}
     ENV BUILD_ROOT=${BUILD_ROOT}
 
+    ARG TARGETARCH
     RUN cd app/build && \
-        THEME=nextcloud grunt
+        THEME=nextcloud grunt $(if [ "$TARGETARCH" = "arm64" ]; then echo "--skip-imagemin"; fi)
 
-#### SERVER-BASE ####
+#### SERVER ####
 FROM base AS server
     ARG PRODUCT_VERSION
     ARG BUILD_ROOT=/package
+    ARG TARGETARCH
 
     ENV PRODUCT_VERSION=${PRODUCT_VERSION}
 
@@ -139,21 +151,24 @@ FROM base AS server
     RUN cd /server/Common && \
         sed "s|\(const buildVersion = \).*|\1'${PRODUCT_VERSION}';|" -i sources/commondefines.js
 
-    RUN cd /server/DocService && \
-        pkg . -t linux-x64 --node-options="--max_old_space_size=4096" -o ${BUILD_ROOT}/docservice
+    RUN PKG_TARGET=$(if [ "$TARGETARCH" = "arm64" ]; then echo "linux-arm64"; else echo "linux-x64"; fi) && \
+        cd /server/DocService && \
+        pkg . -t $PKG_TARGET --node-options="--max_old_space_size=4096" -o ${BUILD_ROOT}/docservice
 
-    RUN cd /server/FileConverter && \
-        pkg . -t linux-x64 --node-options="--max_old_space_size=4096" -o ${BUILD_ROOT}/fileconverter
+    RUN PKG_TARGET=$(if [ "$TARGETARCH" = "arm64" ]; then echo "linux-arm64"; else echo "linux-x64"; fi) && \
+        cd /server/FileConverter && \
+        pkg . -t $PKG_TARGET --node-options="--max_old_space_size=4096" -o ${BUILD_ROOT}/fileconverter
 
-    RUN cd /server/Metrics && \
-        pkg . -t linux-x64 --node-options="--max_old_space_size=4096" -o ${BUILD_ROOT}/metrics
+    RUN PKG_TARGET=$(if [ "$TARGETARCH" = "arm64" ]; then echo "linux-arm64"; else echo "linux-x64"; fi) && \
+        cd /server/Metrics && \
+        pkg . -t $PKG_TARGET --node-options="--max_old_space_size=4096" -o ${BUILD_ROOT}/metrics
 
-    RUN cd /server/AdminPanel/server && \
-        pkg . -t linux-x64 --node-options="--max_old_space_size=4096" -o ${BUILD_ROOT}/adminpanel
+    RUN PKG_TARGET=$(if [ "$TARGETARCH" = "arm64" ]; then echo "linux-arm64"; else echo "linux-x64"; fi) && \
+        cd /server/AdminPanel/server && \
+        pkg . -t $PKG_TARGET --node-options="--max_old_space_size=4096" -o ${BUILD_ROOT}/adminpanel
 
     RUN cd /server/AdminPanel/client && \
         npm run build
-
 
 #### FINAL UBUNTU ####
 FROM ubuntu:24.04 AS finalubuntu
