@@ -112,11 +112,11 @@ FROM base AS sdkjs
     ENV BUILD_ROOT=${BUILD_ROOT}
 
     ## Copy core wasm builds
-    COPY --from=core-wasm ${BUILD_ROOT}/engine/* /app/pdf/src/engine
-    COPY --from=core-wasm ${BUILD_ROOT}/zlib/* /app/common/zlib
-    COPY --from=core-wasm ${BUILD_ROOT}/hash/* /app/common/hash
-    COPY --from=core-wasm ${BUILD_ROOT}/spell/* /app/common/spell
-    COPY --from=core-wasm ${BUILD_ROOT}/libfont/* /app/common/libfont
+    COPY --from=core-wasm ${BUILD_ROOT}/engine/ /app/pdf/src/engine/
+    COPY --from=core-wasm ${BUILD_ROOT}/zlib/ /app/common/zlib/
+    COPY --from=core-wasm ${BUILD_ROOT}/hash/ /app/common/hash/
+    COPY --from=core-wasm ${BUILD_ROOT}/spell/ /app/common/spell/
+    COPY --from=core-wasm ${BUILD_ROOT}/libfont/ /app/common/libfont/
 
     RUN cd app/build && \
         grunt
