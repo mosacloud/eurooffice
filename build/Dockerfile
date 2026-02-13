@@ -88,6 +88,9 @@ FROM ubuntu:24.04 AS core-wasm
 
     COPY core /core
 
+    # hash wasm has one dependency in sdkjs which we must copy here (TODO: fix this)
+    COPY sdkjs/common/stringserialize.js /sdkjs/common/stringserialize.js
+
     RUN --mount=type=cache,target=/build-cache1 <<EOF
         cd /build-cache1
         /bin/bash -c "source /opt/emsdk/emsdk_env.sh && emcmake cmake -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT} /core && cmake --build ."
@@ -111,7 +114,7 @@ FROM base AS sdkjs
     ## Copy core wasm builds
     COPY --from=core-wasm ${BUILD_ROOT}/engine/* /app/pdf/src/engine
     COPY --from=core-wasm ${BUILD_ROOT}/zlib/* /app/common/zlib
-    COPY --from=core-wasm ${BUILD_ROOT}/hash/*/app/common/hash
+    COPY --from=core-wasm ${BUILD_ROOT}/hash/* /app/common/hash
     COPY --from=core-wasm ${BUILD_ROOT}/spell/* /app/common/spell
     COPY --from=core-wasm ${BUILD_ROOT}/libfont/* /app/common/libfont
 

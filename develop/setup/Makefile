@@ -111,6 +111,9 @@ build-hash:
 build-draw:
 	$(call build_wasm,/build/wasm/draw,$(EO_DEV)/sdkjs/pdf/src,$(EO_DEV)/core/DesktopEditor/graphics/pro/js)
 
+build-oform:
+	$(call build_wasm,/build/wasm/oform,$(EO_DEV)/core/DesktopEditor/xmlsec/src/wasm/oform_plugin/module/deploy,$(EO_DEV)/core/DesktopEditor/xmlsec/src/wasm/oform_plugin/module)
+
 core/wasm/font: build-font
 	@$(MAKE) sdkjs
 
@@ -125,6 +128,8 @@ core/wasm/hash: build-hash
 
 core/wasm/draw: build-draw
 	@$(MAKE) sdkjs
+
+core/wasm/oform: build-oform
 
 core/wasm: build-font build-spell build-zlib build-hash build-draw
 	@echo "All WASM modules built. Running sdkjs..."
