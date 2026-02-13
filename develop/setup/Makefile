@@ -53,88 +53,95 @@ sdkjs:
 
 BUILD_FLAGS     := -DEO_CORE_OUTPUT_DIR=$(EO_ROOT)/server/FileConverter/bin -DEO_CORE_TOOLS_DIR=$(EO_ROOT)/server/tools -DEO_CORE_3RD_PARTY_DIR=/build/3rdParty
 
+define build_core
+	@echo "Building $(1) with flags $(CFLAGS)"
+	mkdir -p $(1)
+	cd $(1) && \
+	cmake -GNinja $(BUILD_FLAGS) $(CFLAGS) $(2) && \
+	cmake --build .
+endef
+
+
 .PHONY: core
 
 core:
-	@echo "Building core with flags $(CFLAGS)"
-	mkdir -p /build/core
-	cd /build/core && \
-	cmake -GNinja $(BUILD_FLAGS) $(CFLAGS) $(EO_DEV)/core && \
-	cmake --build .
+	$(call build_core,/build/core,$(EO_DEV)/core)
 
 core/allfontsgen:
-	@echo "Building core/allfontsgen with flags $(CFLAGS)"
-	mkdir -p /build/allfontsgen
-	cd /build/allfontsgen && \
-	cmake -GNinja $(BUILD_FLAGS) $(CFLAGS) $(EO_DEV)/core/DesktopEditor/AllFontsGen && \
-	cmake --build .
+	$(call build_core,/build/allfontsgen,$(EO_DEV)/core/DesktopEditor/AllFontsGen)
 
 core/allthemesgen:
-	@echo "Building core/allthemesgen with flags $(CFLAGS)"
-	mkdir -p /build/allthemesgen
-	cd /build/allthemesgen && \
-	cmake -GNinja $(BUILD_FLAGS) $(CFLAGS) $(EO_DEV)/core/DesktopEditor/allthemesgen && \
-	cmake --build .
+	$(call build_core,/build/allthemesgen,$(EO_DEV)/core/DesktopEditor/allthemesgen)
 
 core/pluginsmanager:
-	@echo "Building core/pluginsmanager with flags $(CFLAGS)"
-	mkdir -p /build/pluginsmanager
-	cd /build/pluginsmanager && \
-	cmake -GNinja $(BUILD_FLAGS) $(CFLAGS) $(EO_DEV)/core/DesktopEditor/pluginsmanager && \
-	cmake --build .
+	$(call build_core,/build/pluginsmanager,$(EO_DEV)/core/DesktopEditor/pluginsmanager)
 
 core/x2t:
-	@echo "Building core/x2t with flags $(CFLAGS)"
-	mkdir -p /build/x2t
-	cd /build/x2t && \
-	cmake -GNinja $(BUILD_FLAGS) $(CFLAGS) $(EO_DEV)/core/X2tConverter/build/cmake && \
-	cmake --build .
+	$(call build_core,/build/x2t,$(EO_DEV)/core/X2tConverter/build/cmake)
 
 core/docbuilder:
-	@echo "Building core/docbuilder with flags $(CFLAGS)"
-	mkdir -p /build/docbuilder
-	cd /build/docbuilder && \
-	cmake -GNinja $(BUILD_FLAGS) $(CFLAGS) $(EO_DEV)/core/DesktopEditor/doctrenderer/app_builder && \
+	$(call build_core,/build/docbuilder,$(EO_DEV)/core/DesktopEditor/doctrenderer/app_builder)
+
+
+## -----------------
+## CORE WASM BUILD
+## -----------------
+
+define build_wasm
+	@echo "Building $(1) with flags $(CFLAGS)"
+	mkdir -p $(1)
+	cd $(1) && \
+	source /opt/emsdk/emsdk_env.sh && \
+	emcmake cmake -DEO_CORE_3RD_PARTY_DIR=/build/wasm/3rdParty -DEO_CORE_OUTPUT_DIR=$(2) $(3) && \
 	cmake --build .
+endef
 
-core/wasm/font:
-	@echo "Building core/wasm/fonts with flags $(CFLAGS)"
-	mkdir -p /build/wasm/font
-	cd /build/wasm/font && \
-	source /opt/emsdk/emsdk_env.sh && emcmake cmake -DEO_CORE_3RD_PARTY_DIR=/build/wasm/3rdParty -DEO_CORE_OUTPUT_DIR=$(EO_DEV)/sdkjs/common $(EO_DEV)/core/DesktopEditor/fontengine/js && cmake --build .
+build-font:
+	$(call build_wasm,/build/wasm/font,$(EO_DEV)/sdkjs/common,$(EO_DEV)/core/DesktopEditor/fontengine/js)
+
+build-spell:
+	$(call build_wasm,/build/wasm/spell,$(EO_DEV)/sdkjs/common,$(EO_DEV)/core/Common/3dParty/hunspell)
+
+build-zlib:
+	$(call build_wasm,/build/wasm/zlib,$(EO_DEV)/sdkjs/common,$(EO_DEV)/core/OfficeUtils/js)
+
+build-hash:
+	$(call build_wasm,/build/wasm/hash,$(EO_DEV)/sdkjs/common,$(EO_DEV)/core/DesktopEditor/xmlsec/src/wasm/hash)
+
+build-draw:
+	$(call build_wasm,/build/wasm/draw,$(EO_DEV)/sdkjs/pdf/src,$(EO_DEV)/core/DesktopEditor/graphics/pro/js)
+
+core/wasm/font: build-font
 	@$(MAKE) sdkjs
 
-core/wasm/spell:
-	@echo "Building core/wasm/spell with flags $(CFLAGS)"
-	mkdir -p /build/wasm/spell
-	cd /build/wasm/spell && \
-	source /opt/emsdk/emsdk_env.sh && emcmake cmake -DEO_CORE_3RD_PARTY_DIR=/build/wasm/3rdParty -DEO_CORE_OUTPUT_DIR=$(EO_DEV)/sdkjs/common $(EO_DEV)/core/Common/3dParty/hunspell && cmake --build .
+core/wasm/spell: build-spell
 	@$(MAKE) sdkjs
 
-core/wasm/zlib:
-	@echo "Building core/wasm/zlib with flags $(CFLAGS)"
-	mkdir -p /build/wasm/zlib
-	cd /build/wasm/zlib && \
-	source /opt/emsdk/emsdk_env.sh && emcmake cmake -DEO_CORE_3RD_PARTY_DIR=/build/wasm/3rdParty -DEO_CORE_OUTPUT_DIR=$(EO_DEV)/sdkjs/common $(EO_DEV)/core/OfficeUtils/js && cmake --build .
+core/wasm/zlib: build-zlib
 	@$(MAKE) sdkjs
 
-core/wasm/hash:
-	@echo "Building core/wasm/hash with flags $(CFLAGS)"
-	mkdir -p /build/wasm/hash
-	cd /build/wasm/hash && \
-	source /opt/emsdk/emsdk_env.sh && emcmake cmake -DEO_CORE_3RD_PARTY_DIR=/build/wasm/3rdParty -DEO_CORE_OUTPUT_DIR=$(EO_DEV)/sdkjs/common $(EO_DEV)/core/DesktopEditor/xmlsec/src/wasm/hash && cmake --build .
+core/wasm/hash: build-hash
 	@$(MAKE) sdkjs
 
-core/wasm/draw:
-	@echo "Building core/wasm/draw with flags $(CFLAGS)"
-	mkdir -p /build/wasm/draw
-	cd /build/wasm/draw && \
-	source /opt/emsdk/emsdk_env.sh && emcmake cmake -DEO_CORE_3RD_PARTY_DIR=/build/wasm/3rdParty -DEO_CORE_OUTPUT_DIR=$(EO_DEV)/sdkjs/pdf/src/ $(EO_DEV)/core/DesktopEditor/graphics/pro/js && cmake --build .
+core/wasm/draw: build-draw
+	@$(MAKE) sdkjs
+
+core/wasm: build-font build-spell build-zlib build-hash build-draw
+	@echo "All WASM modules built. Running sdkjs..."
 	@$(MAKE) sdkjs
 
 ## -----------------
 ## SERVER BUILD
 ## -----------------
+
+define build_server
+	@echo "Building $(1) with flags $(CFLAGS)"
+	cd $(1) && \
+	npm install && \
+	pkg . -t linux-x64 --node-options="--max_old_space_size=4096" $(CFLAGS) -o $(2) && \
+	supervisorctl restart $(3)
+endef
+
 
 server: server/common server/docservice server/converter server/metrics server/adminp
 
@@ -144,34 +151,18 @@ server/common:
 	sed "s|\(const buildVersion = \).*|\1'${PRODUCT_VERSION}';|" -i sources/commondefines.js
 
 server/docservice: server/common
-	@echo "Building server/docservice with flags $(CFLAGS)"
-	cd $(EO_DEV)/server/DocService && \
-	npm install && \
-	pkg . -t linux-x64 --node-options="--max_old_space_size=4096" $(CFLAGS) -o ${EO_ROOT}/server/DocService/docservice && \
-	supervisorctl restart docservice
+	$(call build_server,$(EO_DEV)/server/DocService,${EO_ROOT}/server/DocService/docservice, docservice)
 
 server/converter: server/common
-	@echo "Building server/converter with flags $(CFLAGS)"
-	cd $(EO_DEV)/server/FileConverter && \
-	npm install && \
-	pkg . -t linux-x64 --node-options="--max_old_space_size=4096" $(CFLAGS) -o ${EO_ROOT}/server/FileConverter/converter && \
-	supervisorctl restart converter
+	$(call build_server,$(EO_DEV)/server/FileConverter,${EO_ROOT}/server/FileConverter/converter, converter)
 
 server/metrics: server/common
-	@echo "Building server/metrics with flags $(CFLAGS)"
-	cd $(EO_DEV)/server/Metrics && \
-	npm install && \
-	pkg . -t linux-x64 --node-options="--max_old_space_size=4096" $(CFLAGS) -o ${EO_ROOT}/server/Metrics/metrics && \
-	supervisorctl restart metrics
+	$(call build_server,$(EO_DEV)/server/Metrics,${EO_ROOT}/server/Metrics/metrics, metrics)
 
 server/adminp: server/common server/adminp/cli server/adminp/srv
 
 server/adminp/srv: server/common
-	@echo "Building server/adminpanel/server with flags $(CFLAGS)"
-	cd $(EO_DEV)/server/AdminPanel/server && \
-	npm install && \
-	pkg . -t linux-x64 --node-options="--max_old_space_size=4096" $(CFLAGS) -o ${EO_ROOT}/server/AdminPanel/server/adminpanel && \
-	supervisorctl restart adminpanel
+	$(call build_server,$(EO_DEV)/server/AdminPanel/server,${EO_ROOT}/server/AdminPanel/server/adminpanel, adminpanel)
 
 server/adminp/cli: server/common
 	@echo "Building server/adminpanel/client with flags $(CFLAGS)"
