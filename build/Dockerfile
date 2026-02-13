@@ -90,7 +90,7 @@ FROM ubuntu:24.04 AS core-wasm
 
     RUN --mount=type=cache,target=/build-cache1 <<EOF
         cd /build-cache1
-        /bin/bash -c "source /opt/emsdk/emsdk_env.sh && emcmake cmake -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT} /core/DesktopEditor/fontengine/js && cmake --build ."
+        /bin/bash -c "source /opt/emsdk/emsdk_env.sh && emcmake cmake -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT} /core && cmake --build ."
 EOF
 
 #### SDKJS ####
@@ -109,11 +109,11 @@ FROM base AS sdkjs
     ENV BUILD_ROOT=${BUILD_ROOT}
 
     ## Copy core wasm builds
-    #COPY --from=core-wasm ${BUILD_ROOT}/drawingfile/* /var/www/onlyoffice/documentserver/sdkjs/pdf/src/engine
-    #COPY --from=core-wasm ${BUILD_ROOT}/zlib/* /var/www/onlyoffice/documentserver/sdkjs/common/zlib/engine
-    #COPY --from=core-wasm ${BUILD_ROOT}/engine/* /var/www/onlyoffice/documentserver/sdkjs/common/hash/hash
-    #COPY --from=core-wasm ${BUILD_ROOT}/spell/* /var/www/onlyoffice/documentserver/sdkjs/common/spell/spell
-    #COPY --from=core-wasm ${BUILD_ROOT}/fonts/* /var/www/onlyoffice/documentserver/sdkjs/common/libfont
+    COPY --from=core-wasm ${BUILD_ROOT}/engine/* /app/pdf/src/engine
+    COPY --from=core-wasm ${BUILD_ROOT}/zlib/* /app/common/zlib
+    COPY --from=core-wasm ${BUILD_ROOT}/hash/*/app/common/hash
+    COPY --from=core-wasm ${BUILD_ROOT}/spell/* /app/common/spell
+    COPY --from=core-wasm ${BUILD_ROOT}/libfont/* /app/common/libfont
 
     RUN cd app/build && \
         grunt
