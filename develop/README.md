@@ -84,17 +84,11 @@ make web-apps
 ```
 
 #### Quick rebuild
-without npm ci, imagemin, or babel
+without npm ci, imagemin, or babel. Runs with the Nextcloud theme.
 
 ```sh
 make web-apps-dev
 ```
-
-#### Quick rebuild with Nextcloud theme
-
-```sh
-make web-dev-nx
-````
 
 #### Custom build
 Use `CFLAGS` to pass additional flags
