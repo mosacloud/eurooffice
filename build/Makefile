@@ -14,11 +14,11 @@ docker-target:
 		echo "ERROR: TARGET is not set. Usage: make docker-target TARGET=<stage>"; \
 		exit 1; \
 	fi
-	@docker build -t euro-office/documentserver:latest --build-arg PRODUCT_VERSION=9.2.1 --build-arg BUILD_ROOT=/package --build-arg TARGETCPU=$(TARGET_CPU) --target $(TARGET) -o $(DEPLOY) -f ./Dockerfile ../
+	@docker build -t euro-office/documentserver:latest --build-arg PRODUCT_VERSION=9.2.1 --build-arg BUILD_ROOT=/package --build-arg TARGET_CPU=$(TARGET_CPU) --target $(TARGET) -o $(DEPLOY) -f ./Dockerfile ../
 
 .PHONY: build
 build:
-	@docker build -t euro-office/documentserver:latest --build-arg PRODUCT_VERSION=9.2.1 --build-arg BUILD_ROOT=/package --build-arg TARGETCPU=$(TARGET_CPU) --target develop -f ./Dockerfile ../
+	@docker build -t euro-office/documentserver:latest --build-arg PRODUCT_VERSION=9.2.1 --build-arg BUILD_ROOT=/package --build-arg TARGET_CPU=$(TARGET_CPU) --target develop -f ./Dockerfile ../
 
 .PHONY: run
 run: build-image
