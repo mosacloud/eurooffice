@@ -43,4 +43,3 @@ After building the image, you can run it with a simple `docker run` or with:
 ```sh
 make run
 ```
-

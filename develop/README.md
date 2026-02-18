@@ -56,3 +56,53 @@ The docker compose environment in this directory allows to run document server b
     - WEBAPPS_FLAGS
 
   then build with DEBUG=1, e.g. make sdkjs DEBUG=1
+
+#### ARM64 support (Apple Silicon / Graviton)
+
+The Docker image and dev Makefile handle ARM64 automatically:
+
+- **core**: Uses pre-built upstream binaries on arm64 (V8's bundled clang is x86_64-only)
+- **sdkjs**: Closure Compiler falls back to Java mode (`CC_PLATFORM=java`) since the native binary is x86_64-only
+- **web-apps**: Skips imagemin on arm64 (native binaries are x86_64-only)
+- **server**: `pkg` builds native arm64 binaries
+
+No GHCR arm64 image is available yet, so ARM64 users must build locally with `make build`.
+
+## Development Builds
+
+Once inside the container (`docker exec -it eo bash`), the following make targets are available:
+
+### web-apps
+
+
+#### Full web-apps build
+
+includes npm ci, **run this first**
+
+```sh
+make web-apps
+```
+
+#### Quick rebuild
+without npm ci, imagemin, or babel. Runs with the Nextcloud theme.
+
+```sh
+make web-apps-dev
+```
+
+#### Custom build
+Use `CFLAGS` to pass additional flags
+
+```sh
+THEME=nextcloud make web-apps-dev CFLAGS="--skip-imagemin"
+````
+> The make build commands clear the cache, this does not.
+> Therefore you must run `/usr/bin/documentserver-flush-cache.sh`
+
+### sdkjs
+
+#### Full sdkjs build
+includes npm install + closure compiler + allfontsgen
+```shell
+make sdkjs
+````
