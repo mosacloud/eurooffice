@@ -56,9 +56,10 @@ EOF
 #### CORE (use upstream binaries on arm64 — V8's bundled clang can't run under QEMU) ####
 FROM upstream AS core-arm64
     ARG BUILD_ROOT=/package
-    RUN mkdir -p ${BUILD_ROOT} && \
-        cp -a /var/www/onlyoffice/documentserver/server/FileConverter/bin/* ${BUILD_ROOT}/ && \
-        cp -a /var/www/onlyoffice/documentserver/server/tools/* ${BUILD_ROOT}/
+    RUN mkdir -p ${BUILD_ROOT}/bin && \
+        mkdir -p ${BUILD_ROOT}/tools && \
+        cp -a /var/www/onlyoffice/documentserver/server/FileConverter/bin/* ${BUILD_ROOT}/bin && \
+        cp -a /var/www/onlyoffice/documentserver/server/tools/* ${BUILD_ROOT}/tools
 
 FROM core-${TARGETARCH} AS core
 
