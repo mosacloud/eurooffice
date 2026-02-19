@@ -70,9 +70,9 @@ mkdir -p ${BUILD_ROOT}
 cd /build-cache
 
 cmake -GNinja \
-  -DCMAKE_BUILD_TYPE=Debug \
-  -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" \
-  -DCMAKE_C_FLAGS_DEBUG="-g -O0" \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_CXX_FLAGS_RELEASE="-O3" \
+  -DCMAKE_C_FLAGS_RELEASE="-O3" \
   -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT}/bin \
   -DEO_CORE_TOOLS_DIR=${BUILD_ROOT}/tools \
   /core
@@ -208,7 +208,10 @@ ENV EO_CONF=${EO_CONF}
 RUN apt-get -y update && \
     ACCEPT_EULA=Y apt-get -yq install \
         postgresql postgresql-client redis-server rabbitmq-server \
-        nginx sudo gdb nginx-extras supervisor jq
+        nginx sudo gdb nginx-extras supervisor jq util-linux
+
+# Create the 'ds' user that is required by OnlyOffice scripts
+RUN useradd -r -s /bin/false ds || true
 
 COPY build/configs/postgres ${EO_ROOT}/server/schema/postgresql
 
@@ -230,8 +233,14 @@ RUN rm -f /etc/nginx/sites-enabled/default && \
 COPY --from=sdkjs ${BUILD_ROOT} ${EO_ROOT}/
 COPY --from=web-apps ${BUILD_ROOT} ${EO_ROOT}/
 
-COPY --from=core ${BUILD_ROOT}/bin/* ${EO_ROOT}/server/FileConverter/bin/
-COPY --from=core ${BUILD_ROOT}/tools/* ${EO_ROOT}/server/tools/
+# Copy all core binaries and tools (including libgraphics.so for shared libraries)
+COPY --from=core ${BUILD_ROOT}/bin/ ${EO_ROOT}/server/FileConverter/bin/
+COPY --from=core ${BUILD_ROOT}/tools/ ${EO_ROOT}/server/tools/
+
+# Copy ICU libraries from the package root in core stage
+RUN mkdir -p ${EO_ROOT}/server/FileConverter/lib ${EO_ROOT}/server/tools && \
+    cp /package/*.so* ${EO_ROOT}/server/FileConverter/lib/ 2>/dev/null || true && \
+    cp /package/tools/*.so* ${EO_ROOT}/server/tools/ 2>/dev/null || true
 
 COPY --from=server ${BUILD_ROOT}/docservice    ${EO_ROOT}/server/DocService/docservice
 COPY --from=server ${BUILD_ROOT}/fileconverter ${EO_ROOT}/server/FileConverter/converter
@@ -241,10 +250,23 @@ COPY --from=server ${BUILD_ROOT}/build         ${EO_ROOT}/server/AdminPanel/clie
 
 COPY core-fonts ${EO_ROOT}/core-fonts
 
+# Create required config directories and files
+RUN mkdir -p ${EO_ROOT}/server/Common/config && \
+    touch ${EO_ROOT}/server/Common/config/runtime.json && \
+    echo '{}' > ${EO_ROOT}/server/Common/config/runtime.json
+
+# Set proper permissions for OnlyOffice directories (fixes EACCES permission denied)
+RUN mkdir -p /var/lib/onlyoffice && \
+    chown -R ds:ds /var/www/onlyoffice /var/lib/onlyoffice /var/log/onlyoffice
+
+# Copy log4js configuration first before trying to use it
 COPY build/configs/onlyoffice/default.json            ${EO_CONF}/default.json
 COPY build/configs/onlyoffice/development-linux.json  ${EO_CONF}/development-linux.json
-COPY build/configs/onlyoffice/log4js/development.json ${EO_CONF}/log4js/development.json
 COPY build/configs/onlyoffice/local.json              ${EO_CONF}/local.json
+COPY build/configs/onlyoffice/log4js/development.json ${EO_CONF}/log4js/development.json
+
+RUN mkdir -p /var/www/onlyoffice/documentserver && \
+    cp ${EO_CONF}/log4js/development.json /var/www/onlyoffice/documentserver/log4js.json
 
 COPY build/configs/metrics/config/config.js ${EO_ROOT}/server/Metrics/config/config.js
 COPY build/configs/nginx/conf.d /etc/nginx/conf.d/
@@ -252,8 +274,8 @@ COPY build/configs/nginx/includes /etc/nginx/includes/
 
 COPY build/configs/core/DoctRenderer.config ${EO_ROOT}/server/FileConverter/bin/DoctRenderer.config
 
-COPY build/scripts/documentserver-flush-cache.sh /usr/bin/documentserver-flush-cache.sh
-COPY build/scripts/documentserver-generate-allfonts.sh /usr/bin/documentserver-generate-allfonts.sh
+COPY --chmod=755 build/scripts/documentserver-flush-cache.sh /usr/bin/documentserver-flush-cache.sh
+COPY --chmod=755 build/scripts/documentserver-generate-allfonts.sh /usr/bin/documentserver-generate-allfonts.sh
 COPY build/configs/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 RUN /usr/bin/documentserver-flush-cache.sh -r false

@@ -7,16 +7,22 @@ fi
 
 DIR="/var/www/onlyoffice/documentserver"
 
-export LD_LIBRARY_PATH=/var/www/onlyoffice/documentserver/server/FileConverter/bin:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/var/www/onlyoffice/documentserver/server/FileConverter/bin:/var/www/onlyoffice/documentserver/server/FileConverter/lib:$LD_LIBRARY_PATH
+
+# Start the ds user if it doesn't exist (for chown commands later)
+if ! id -u ds > /dev/null 2>&1; then
+    useradd -r -s /bin/false ds 2>/dev/null || true
+fi
 
 #Start generate AllFonts.js, font thumbnails and font_selection.bin
-echo -n Generating AllFonts.js, please wait...
+echo "Generating AllFonts.js, please wait..."
 
-rm -r $DIR/fonts
-rm $DIR/sdkjs/common/AllFonts.js
-rm $DIR/server/FileConverter/bin/AllFonts.js
-rm $DIR/server/FileConverter/bin/font_selection.bin
-mkdir $DIR/fonts
+# Check if allfontsgen exists before trying to run it
+if [ ! -x "$DIR/server/tools/allfontsgen" ]; then
+    echo "ERROR: allfontsgen not found or not executable at $DIR/server/tools/allfontsgen"
+    exit 1
+fi
+
 
 "$DIR/server/tools/allfontsgen"\
   --input="$DIR/core-fonts"\

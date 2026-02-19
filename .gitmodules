@@ -13,3 +13,6 @@
 [submodule "core"]
 	path = core
 	url = git@github.com:Euro-Office/core.git
+[submodule "document-server-integration"]
+	path = document-server-integration
+	url = git@github.com:Euro-Office/document-server-integration.git
