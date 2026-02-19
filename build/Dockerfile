@@ -49,10 +49,8 @@ FROM ubuntu AS core-amd64
 
     RUN --mount=type=cache,target=/build-cache <<EOF
         cd /build-cache
-        cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" -DCMAKE_C_FLAGS_DEBUG="-g -O0" /core
+        cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" -DCMAKE_C_FLAGS_DEBUG="-g -O0" -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT}/bin -DEO_CORE_TOOLS_DIR=${BUILD_ROOT}/tools /core
         cmake --build .
-        mkdir -p ${BUILD_ROOT}
-        cp -r /build-cache/package/* ${BUILD_ROOT}/
 EOF
 
 #### CORE (use upstream binaries on arm64 — V8's bundled clang can't run under QEMU) ####
@@ -221,11 +219,8 @@ FROM ubuntu:24.04 AS finalubuntu
     COPY --from=web-apps ${BUILD_ROOT} ${EO_ROOT}/
 
     ## Copy core builds
-    COPY --from=core ${BUILD_ROOT}/* ${EO_ROOT}/server/FileConverter/bin/
-    RUN mkdir ${EO_ROOT}/server/tools/ && \
-        mv ${EO_ROOT}/server/FileConverter/bin/allfontsgen    ${EO_ROOT}/server/tools/ && \
-        mv ${EO_ROOT}/server/FileConverter/bin/allthemesgen   ${EO_ROOT}/server/tools/ && \
-        mv ${EO_ROOT}/server/FileConverter/bin/pluginsmanager ${EO_ROOT}/server/tools/
+    COPY --from=core ${BUILD_ROOT}/bin/* ${EO_ROOT}/server/FileConverter/bin/
+    COPY --from=core ${BUILD_ROOT}/tools/* ${EO_ROOT}/server/tools/
 
 
     ## Copy server builds
