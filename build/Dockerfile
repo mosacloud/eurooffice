@@ -54,35 +54,8 @@ FROM ubuntu AS core
 EOF
 
 #### CORE WASM ####
-FROM ubuntu:24.04 AS core-wasm 
+FROM emscripten/emsdk:latest AS core-wasm 
     ARG BUILD_ROOT=/package
-
-    ## Install Dependencies
-    RUN apt-get -y update && \
-        apt-get -y upgrade && \
-        apt-get -y install \
-                   tar \
-                   xz-utils \
-                   wget \ 
-                   cmake \
-                   python3 \
-                   libtool-bin \
-                   autoconf \
-                   pkg-config \
-                   python3-dev \
-                   git \
-                   python-is-python3
-
-    ## Install Emscripten
-    RUN wget -qO emsdk.tar.gz https://github.com/emscripten-core/emsdk/archive/main.tar.gz && \
-        mkdir /opt/emsdk && \
-        tar xf emsdk.tar.gz --strip-components=1 -C /opt/emsdk && \
-        /opt/emsdk/emsdk install latest && \
-        /opt/emsdk/emsdk activate latest && \
-        chmod +x /opt/emsdk/emsdk_env.sh && \
-        /bin/bash -c "source /opt/emsdk/emsdk_env.sh" && \
-        rm -rf emsdk.tar.gz
-
 
     ENV BUILD_ROOT=${BUILD_ROOT}
 
@@ -93,7 +66,7 @@ FROM ubuntu:24.04 AS core-wasm
 
     RUN --mount=type=cache,target=/build-cache1 <<EOF
         cd /build-cache1
-        /bin/bash -c "source /opt/emsdk/emsdk_env.sh && emcmake cmake -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT} /core && cmake --build ."
+        /bin/bash -c "emcmake cmake -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT} /core && cmake --build ."
 EOF
 
 #### SDKJS ####
