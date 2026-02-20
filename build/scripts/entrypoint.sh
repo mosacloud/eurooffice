@@ -23,11 +23,12 @@ CONFIG_FILE="$EO_CONF/local.json"
 
 jq_filter='.'
 
-[ -n "$JWT_SECRET" ] && \
+if [ -n "$JWT_SECRET" ]; then
   jq_filter="$jq_filter | .services.CoAuthoring.secret.browser.string = \$jwtSecret"
   jq_filter="$jq_filter | .services.CoAuthoring.secret.inbox.string   = \$jwtSecret"
   jq_filter="$jq_filter | .services.CoAuthoring.secret.outbox.string  = \$jwtSecret"
   jq_filter="$jq_filter | .services.CoAuthoring.secret.session.string = \$jwtSecret"
+fi
 
 [ -n "$DB_PASSWORD" ] && \
   jq_filter="$jq_filter | .services.CoAuthoring.sql.dbPass = \$dbPassword"

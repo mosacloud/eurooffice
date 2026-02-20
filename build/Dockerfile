@@ -135,7 +135,7 @@ COPY web-apps/build/sprites/package*.json /app/build/sprites/
 COPY web-apps/build/plugins/grunt-inline/ /app/build/plugins/grunt-inline/
 
 RUN --mount=type=cache,target=/root/.npm \
-    cd app/build && npm install
+     cd app/build && npm install
 
 RUN npm install --save-dev imagemin-gifsicle imagemin-jpegtran imagemin-optipng imagemin-svgo || true
 
@@ -147,21 +147,6 @@ COPY web-apps/ /app
     ARG TARGETARCH
     RUN cd app/build && \
         THEME=nextcloud grunt --force $(if [ "$TARGETARCH" = "arm64" ]; then echo "--skip-imagemin"; fi)
-
-#### DOCUMENTSERVER-EXAMPLE ####
-FROM base AS build-example
-    RUN --mount=type=bind,source=./document-server-integration/web/documentserver-example/nodejs,target=/temp,rw \
-        mkdir -p /example && \
-        cd /temp && \
-        npm install && \
-        pkg . -t linux-x64 --options max_old_space_size=4096 -o /example/example && \
-        # Copy config directory
-        mkdir -p /example/config && cp -r config/* /example/config/ && \
-        # Copy public assets
-        mkdir -p /example/public && cp -r public/* /example/public/
-
-FROM scratch AS example
-    COPY --from=build-example /example /example
 
 #### SERVER ####
 FROM base AS server
@@ -206,6 +191,18 @@ RUN TARGETCPU_PKG=$(echo "$TARGET_CPU" | sed 's/aarch64/arm64/') && \
     pkg . -t linux-"$TARGETCPU_PKG" --node-options="--max_old_space_size=4096" -o "${BUILD_ROOT}/adminpanel"
 
 RUN cd /server/AdminPanel/client && npm run build
+
+#### DOCUMENTSERVER-EXAMPLE ####
+FROM base AS build-example
+    COPY document-server-integration/web/documentserver-example/nodejs/package*.json /app/build/
+    RUN --mount=type=cache,target=/root/.npm cd /app/build && npm install
+    COPY document-server-integration/web/documentserver-example/nodejs /app
+    WORKDIR /app
+    RUN TARGETCPU_PKG=$(echo "$TARGET_CPU" | sed 's/aarch64/arm64/') && \
+    pkg . -t linux-"$TARGETCPU_PKG" --node-options="--max_old_space_size=4096" -o /app/example
+
+FROM scratch AS example
+    COPY --from=build-example /app/ /example
 
 #### FINAL UBUNTU ####
 FROM ubuntu:24.04 AS finalubuntu
@@ -265,12 +262,11 @@ COPY --from=server ${BUILD_ROOT}/build         ${EO_ROOT}/server/AdminPanel/clie
 
 COPY core-fonts ${EO_ROOT}/core-fonts
 
-# Install our self-built example app
+# Install example app
 COPY --from=example /example/example /var/www/onlyoffice/documentserver-example/example
+RUN mkdir -p /var/www/onlyoffice/documentserver-example/files
 # Copy patched config file default.json
 COPY --from=example /example/config/* /etc/onlyoffice/documentserver-example/
-
-RUN sed 's,autostart=false,autostart=true,' -i /etc/supervisor/conf.d/ds-example.conf
 
 
 # Create required config directories and files
