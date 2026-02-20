@@ -12,8 +12,8 @@ FROM debian:trixie AS base
 
 
 
-#### CORE (built from source on amd64) ####
-FROM ubuntu AS core-amd64
+#### CORE ####
+FROM ubuntu AS core-base
     ARG BUILD_ROOT=/package
 
     ENV TZ=Etc/UTC
@@ -47,6 +47,8 @@ FROM ubuntu AS core-amd64
 
     ENV BUILD_ROOT=${BUILD_ROOT}
 
+
+FROM core-base AS core-amd64
     RUN --mount=type=cache,target=/build-cache <<EOF
         cd /build-cache
         cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" -DCMAKE_C_FLAGS_DEBUG="-g -O0" -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT}/bin -DEO_CORE_TOOLS_DIR=${BUILD_ROOT}/tools /core
@@ -79,6 +81,28 @@ FROM emscripten/emsdk:latest AS core-wasm
         cd /build-cache1
         /bin/bash -c "emcmake cmake -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT} /core && cmake --build ."
 EOF
+
+
+#### DESKTOP-SDK
+FROM core-base AS desktop-sdk
+
+    RUN apt-get -y update && \
+        apt-get -y upgrade && \
+        apt-get -y install \
+                    libgtk-3-dev \ 
+                    libatk1.0-dev \
+                    pkg-config \
+                    libx11-xcb-dev \
+                    libxkbcommon-x11-dev \
+                    qt6-base-dev
+
+    COPY desktop-sdk /desktop-sdk
+
+    #RUN --mount=type=cache,target=/build-cache <<EOF
+    #    cd /build-cache
+    #    cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" -DCMAKE_C_FLAGS_DEBUG="-g -O0" -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT}/bin -DEO_CORE_TOOLS_DIR=${BUILD_ROOT}/tools /desktop-sdk/HtmlFile/Internal
+    #    cmake --build .
+#EOF
 
 
 #### SDKJS ####
