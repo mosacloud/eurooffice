@@ -83,18 +83,66 @@ FROM emscripten/emsdk:latest AS core-wasm
 EOF
 
 
+#### Chrome Embedded Framework (CEF)
+FROM ubuntu:18.04 AS cef-builder
+    RUN apt-get -y update && \
+        apt-get -y upgrade && \
+        apt-get -y install \
+        wget \
+        curl \
+        python3 \
+        git \
+        libcups2-dev \
+        libglib2.0-dev \
+        libgtk-3-dev \
+        libx11-xcb-dev \
+        libxi-dev \
+        libxrender-dev \
+        libxrandr-dev \
+        libxinerama-dev \
+        libxcursor-dev \
+        libgirepository1.0-dev \
+        libglib2.0-dev \
+        libcairo2-dev \
+        libnss3-dev \
+        libgnome-keyring-dev \
+        libgbm-dev \
+        gperf \
+        locales \
+        uuid-dev \
+        libcurl4-openssl-dev \
+        libpulse-dev \
+        libasound2-dev \
+        libkrb5-dev \
+        libpci-dev
+
+    COPY core /core
+
+
+
 #### DESKTOP-SDK
 FROM core-base AS desktop-sdk
 
     RUN apt-get -y update && \
         apt-get -y upgrade && \
         apt-get -y install \
-                    libgtk-3-dev \ 
+                    libgtk-3-dev \
                     libatk1.0-dev \
                     pkg-config \
                     libx11-xcb-dev \
                     libxkbcommon-x11-dev \
-                    qt6-base-dev
+                    qtbase5-dev \
+                    qtmultimedia5-dev \
+                    libqt5multimedia5-plugins \
+                    libqt5multimediawidgets5 \
+                    libqt5printsupport5 \
+                    libqt5x11extras5-dev \
+                    libqt5svg5-dev \
+                    libnotify-dev \
+                    qttools5-dev \
+                    qttools5-dev-tools \
+                    libcups2-dev \
+                    libdbus-1-dev
 
     COPY desktop-sdk /desktop-sdk
 
