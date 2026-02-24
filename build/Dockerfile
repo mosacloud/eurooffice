@@ -63,6 +63,24 @@ FROM upstream AS core-arm64
 
 FROM core-${TARGETARCH} AS core
 
+
+#### CORE WASM ####
+FROM emscripten/emsdk:latest AS core-wasm 
+    ARG BUILD_ROOT=/package
+
+    ENV BUILD_ROOT=${BUILD_ROOT}
+
+    COPY core /core
+
+    # hash wasm has one dependency in sdkjs which we must copy here (TODO: fix this)
+    COPY sdkjs/common/stringserialize.js /sdkjs/common/stringserialize.js
+
+    RUN --mount=type=cache,target=/build-cache1 <<EOF
+        cd /build-cache1
+        /bin/bash -c "emcmake cmake -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT} /core && cmake --build ."
+EOF
+
+
 #### SDKJS ####
 FROM base AS sdkjs
 
@@ -77,6 +95,13 @@ FROM base AS sdkjs
     COPY sdkjs/ /app
 
     ENV BUILD_ROOT=${BUILD_ROOT}
+
+    ## Copy core wasm builds
+    COPY --from=core-wasm ${BUILD_ROOT}/engine/ /app/pdf/src/engine/
+    COPY --from=core-wasm ${BUILD_ROOT}/zlib/ /app/common/zlib/
+    COPY --from=core-wasm ${BUILD_ROOT}/hash/ /app/common/hash/
+    COPY --from=core-wasm ${BUILD_ROOT}/spell/ /app/common/spell/
+    COPY --from=core-wasm ${BUILD_ROOT}/libfont/ /app/common/libfont/
 
     ARG TARGETARCH
     RUN cd app/build && \
@@ -221,8 +246,10 @@ FROM ubuntu:24.04 AS finalubuntu
 
     ## Copy core builds
     COPY --from=core ${BUILD_ROOT}/bin/* ${EO_ROOT}/server/FileConverter/bin/
-    COPY --from=core ${BUILD_ROOT}/tools/* ${EO_ROOT}/server/tools/
+    COPY --from=core ${BUILD_ROOT}/tools/* ${EO_ROOT}/server/tools/        
 
+    ## Copy dictionary
+    COPY dictionaries /var/www/onlyoffice/documentserver/dictionaries
 
     ## Copy server builds
     COPY --from=server ${BUILD_ROOT}/docservice    ${EO_ROOT}/server/DocService/docservice
@@ -302,8 +329,23 @@ FROM finalubuntu AS develop
                     python-is-python3 \
                     lsb-release \
                     libboost-all-dev \
+                    tar \
+                    xz-utils \
+                    libtool-bin \
+                    autoconf \
+                    python3-dev \
                     && \
         rm -rf /var/lib/apt-get/lists/*
+
+    ## Install Emscripten
+    RUN wget -qO emsdk.tar.gz https://github.com/emscripten-core/emsdk/archive/main.tar.gz && \
+        mkdir /opt/emsdk && \
+        tar xf emsdk.tar.gz --strip-components=1 -C /opt/emsdk && \
+        /opt/emsdk/emsdk install latest && \
+        /opt/emsdk/emsdk activate latest && \
+        chmod +x /opt/emsdk/emsdk_env.sh && \
+        /bin/bash -c "source /opt/emsdk/emsdk_env.sh" && \
+        rm -rf emsdk.tar.gz
 
     # hardcoded for now. todo: get from whatever is defined in upstream
     ENV PRODUCT_VERSION=${PRODUCT_VERSION}
