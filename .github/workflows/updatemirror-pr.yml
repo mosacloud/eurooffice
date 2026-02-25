@@ -90,16 +90,21 @@ jobs:
         printf "PR body:\n%s\n" "$pr_body"
 
         # Create PR or update body of existing one
-        pr_url=$(gh pr view \
+        pr_data=$(gh pr view \
           --repo "Euro-Office/${{ steps.repo_name.outputs.repo }}" \
           "update-from-${{ steps.repo_name.outputs.upstream_branch }}" \
-          --json url --jq '.url' 2>/dev/null || true)
+          --json url,state 2>/dev/null || true)
 
-        if [ -n "$pr_url" ]; then
+        pr_url=$(echo "$pr_data" | jq -r '.url // empty')
+        pr_state=$(echo "$pr_data" | jq -r '.state // empty')
+
+        if [ -n "$pr_url" ] && [ "$pr_state" = "OPEN" ]; then
+          echo "Updating existing open PR: $pr_url"
           gh pr edit "$pr_url" \
             --title "Update from ${{ steps.repo_name.outputs.upstream_branch }} branch in upstream repository" \
             --body-file "$pr_body_file" || true
         elif [ $applied_count -gt 0 ] || [ -n "$skipped_commits" ]; then
+          echo "Creating new PR (previous PR state: $pr_state)"
           gh pr create \
             --repo "Euro-Office/${{ steps.repo_name.outputs.repo }}" \
             --head update-from-${{ steps.repo_name.outputs.upstream_branch }} \
