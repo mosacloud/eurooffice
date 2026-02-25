@@ -35,7 +35,7 @@ jobs:
         repository: "Euro-Office/${{ steps.repo_name.outputs.repo }}"
         token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
         ref: fork
-    - name: Cherry-pick commits and create PR from ${{ steps.repo_name.outputs.upstream_branch }} branch
+    - name: Merge commits and create PR from ${{ steps.repo_name.outputs.upstream_branch }} branch
       run: |
         git config --global user.name "Euro-Office via GitHub Actions"
         git config --global user.email "noreply@github.com"
@@ -45,7 +45,7 @@ jobs:
 
         git checkout -B update-from-${{ steps.repo_name.outputs.upstream_branch }} origin/update-from-${{ steps.repo_name.outputs.upstream_branch }} || git checkout -B update-from-${{ steps.repo_name.outputs.upstream_branch }}
 
-        # Collect commits to apply, oldest first
+        # Check if there are new commits to merge
         commits=$(git log HEAD..upstream/${{ steps.repo_name.outputs.upstream_branch }} --format="%H" --reverse)
 
         if [ -z "$commits" ]; then
@@ -53,34 +53,29 @@ jobs:
           exit 0
         fi
 
-        skipped_commits=""
-        applied_count=0
-
-        while IFS= read -r commit_hash; do
-          [ -z "$commit_hash" ] && continue
-          commit_subject=$(git log --format="%s" -n 1 "$commit_hash")
-          echo "Cherry-picking $commit_hash: $commit_subject"
-          if git cherry-pick "$commit_hash"; then
-            applied_count=$((applied_count + 1))
-            echo "  -> applied"
-          else
-            echo "  -> conflict, skipping"
-            git cherry-pick --abort || git reset --hard HEAD
-            skipped_commits="${skipped_commits}"$'\n'"- [ ] \`${commit_hash}\` ${commit_subject}"
-          fi
-        done <<< "$commits"
-
-        echo "Applied: $applied_count commit(s)"
-
-        if [ $applied_count -gt 0 ]; then
+        # Attempt to merge upstream branch
+        merge_success=true
+        conflicted_files=""
+        
+        if git merge upstream/${{ steps.repo_name.outputs.upstream_branch }} --no-edit; then
+          echo "Merge completed successfully without conflicts"
           git push origin update-from-${{ steps.repo_name.outputs.upstream_branch }} --force-with-lease
+        else
+          echo "Merge has conflicts"
+          merge_success=false
+          
+          # Collect conflicted files
+          conflicted_files=$(git diff --name-only --diff-filter=U | sed 's/^/- `/' | sed 's/$/`/')
+          
+          # Abort the merge
+          git merge --abort
         fi
 
         # Build PR body
         pr_body="This pull request updates the \`fork\` branch with changes from the \`${{ steps.repo_name.outputs.upstream_branch }}\` branch in the upstream repository."
 
-        if [ -n "$skipped_commits" ]; then
-          pr_body="${pr_body}"$'\n\n## ⚠️ Skipped commits (merge conflicts)\n\nThe following commits could not be applied due to conflicts and must be cherry-picked manually:\n'"${skipped_commits}"
+        if [ "$merge_success" = false ]; then
+          pr_body="${pr_body}"$'\n\n## ⚠️ Merge Conflicts Detected\n\nThe automatic merge from upstream encountered conflicts in the following files:\n\n'"${conflicted_files}"$'\n\n### Action Required\n\n- [ ] Manually merge the upstream branch to inspect and resolve the conflicts:\n  ```bash\n  git fetch upstream '"${{ steps.repo_name.outputs.upstream_branch }}"$'\n  git checkout update-from-'"${{ steps.repo_name.outputs.upstream_branch }}"$'\n  git merge upstream/'"${{ steps.repo_name.outputs.upstream_branch }}"$'\n  # Resolve conflicts, then:\n  git add .\n  git commit\n  git push origin update-from-'"${{ steps.repo_name.outputs.upstream_branch }}"$'\n  ```'
         fi
 
         # Write PR body to temp file to avoid "Argument list too long" error
@@ -103,7 +98,7 @@ jobs:
           gh pr edit "$pr_url" \
             --title "Update from ${{ steps.repo_name.outputs.upstream_branch }} branch in upstream repository" \
             --body-file "$pr_body_file" || true
-        elif [ $applied_count -gt 0 ] || [ -n "$skipped_commits" ]; then
+        elif [ "$merge_success" = true ] || [ -n "$conflicted_files" ]; then
           echo "Creating new PR (previous PR state: $pr_state)"
           gh pr create \
             --repo "Euro-Office/${{ steps.repo_name.outputs.repo }}" \
