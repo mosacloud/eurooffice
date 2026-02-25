@@ -35,28 +35,77 @@ jobs:
         repository: "Euro-Office/${{ steps.repo_name.outputs.repo }}"
         token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
         ref: fork
-    - name: Create branch for pull request to pull branches from ${{ steps.repo_name.outputs.upstream_branch }} branch in the fork branch
+    - name: Cherry-pick commits and create PR from ${{ steps.repo_name.outputs.upstream_branch }} branch
       run: |
         git config --global user.name "Euro-Office via GitHub Actions"
+        git config --global user.email "noreply@github.com"
         git remote add upstream https://github.com/${{ matrix.repo }}.git
         git fetch upstream ${{ steps.repo_name.outputs.upstream_branch }}
         git fetch origin update-from-${{ steps.repo_name.outputs.upstream_branch }} || true
 
         git checkout -B update-from-${{ steps.repo_name.outputs.upstream_branch }} origin/update-from-${{ steps.repo_name.outputs.upstream_branch }} || git checkout -B update-from-${{ steps.repo_name.outputs.upstream_branch }}
 
-        current_commit=$(git rev-parse HEAD)
+        # Collect commits to apply, oldest first
+        commits=$(git log HEAD..upstream/${{ steps.repo_name.outputs.upstream_branch }} --format="%H" --reverse)
 
-        git merge --no-commit upstream/${{ steps.repo_name.outputs.upstream_branch }}
-        git push origin update-from-${{ steps.repo_name.outputs.upstream_branch }} --force-with-lease
+        if [ -z "$commits" ]; then
+          echo "Branch is already up to date, nothing to do."
+          exit 0
+        fi
 
-        new_diff=$(git log $current_commit..HEAD)
+        skipped_commits=""
+        applied_count=0
 
-        gh pr create \
+        while IFS= read -r commit_hash; do
+          [ -z "$commit_hash" ] && continue
+          commit_subject=$(git log --format="%s" -n 1 "$commit_hash")
+          echo "Cherry-picking $commit_hash: $commit_subject"
+          if git cherry-pick "$commit_hash"; then
+            applied_count=$((applied_count + 1))
+            echo "  -> applied"
+          else
+            echo "  -> conflict, skipping"
+            git cherry-pick --abort || git reset --hard HEAD
+            skipped_commits="${skipped_commits}"$'\n'"- \`${commit_hash}\` ${commit_subject}"
+          fi
+        done <<< "$commits"
+
+        echo "Applied: $applied_count commit(s)"
+
+        if [ $applied_count -gt 0 ]; then
+          git push origin update-from-${{ steps.repo_name.outputs.upstream_branch }} --force-with-lease
+        fi
+
+        # Build PR body
+        pr_body="This pull request updates the \`fork\` branch with changes from the \`${{ steps.repo_name.outputs.upstream_branch }}\` branch in the upstream repository."
+
+        if [ -n "$skipped_commits" ]; then
+          pr_body="${pr_body}
+
+## ⚠️ Skipped commits (merge conflicts)
+
+The following commits could not be applied due to conflicts and must be cherry-picked manually:
+${skipped_commits}"
+        fi
+
+        # Create PR or update body of existing one
+        pr_url=$(gh pr view \
           --repo "Euro-Office/${{ steps.repo_name.outputs.repo }}" \
-          --head update-from-${{ steps.repo_name.outputs.upstream_branch }} \
-          --base fork \
-          --title "Update from ${{ steps.repo_name.outputs.upstream_branch }} branch in upstream repository" \
-          --body "This pull request updates the fork branch with changes from the ${{ steps.repo_name.outputs.upstream_branch }} branch in the upstream repository." || true
+          "update-from-${{ steps.repo_name.outputs.upstream_branch }}" \
+          --json url --jq '.url' 2>/dev/null || true)
+
+        if [ -n "$pr_url" ]; then
+          gh pr edit "$pr_url" \
+            --title "Update from ${{ steps.repo_name.outputs.upstream_branch }} branch in upstream repository" \
+            --body "$pr_body" || true
+        elif [ $applied_count -gt 0 ]; then
+          gh pr create \
+            --repo "Euro-Office/${{ steps.repo_name.outputs.repo }}" \
+            --head update-from-${{ steps.repo_name.outputs.upstream_branch }} \
+            --base fork \
+            --title "Update from ${{ steps.repo_name.outputs.upstream_branch }} branch in upstream repository" \
+            --body "$pr_body" || true
+        fi
       env:
-        GITHUB_TOKEN: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}        
+        GITHUB_TOKEN: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
 
