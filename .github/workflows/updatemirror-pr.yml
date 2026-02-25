@@ -66,7 +66,7 @@ jobs:
           else
             echo "  -> conflict, skipping"
             git cherry-pick --abort || git reset --hard HEAD
-            skipped_commits="${skipped_commits}"$'\n'"- \`${commit_hash}\` ${commit_subject}"
+            skipped_commits="${skipped_commits}"$'\n'"- [ ] \`${commit_hash}\` ${commit_subject}"
           fi
         done <<< "$commits"
 
@@ -83,6 +83,10 @@ jobs:
           pr_body="${pr_body}"$'\n\n## ⚠️ Skipped commits (merge conflicts)\n\nThe following commits could not be applied due to conflicts and must be cherry-picked manually:\n'"${skipped_commits}"
         fi
 
+        # Write PR body to temp file to avoid "Argument list too long" error
+        pr_body_file=$(mktemp)
+        echo "$pr_body" > "$pr_body_file"
+
         # Create PR or update body of existing one
         pr_url=$(gh pr view \
           --repo "Euro-Office/${{ steps.repo_name.outputs.repo }}" \
@@ -92,15 +96,18 @@ jobs:
         if [ -n "$pr_url" ]; then
           gh pr edit "$pr_url" \
             --title "Update from ${{ steps.repo_name.outputs.upstream_branch }} branch in upstream repository" \
-            --body "$pr_body" || true
-        elif [ $applied_count -gt 0 ]; then
+            --body-file "$pr_body_file" || true
+        elif [ $applied_count -gt 0 ] || [ -n "$skipped_commits" ]; then
           gh pr create \
             --repo "Euro-Office/${{ steps.repo_name.outputs.repo }}" \
             --head update-from-${{ steps.repo_name.outputs.upstream_branch }} \
             --base fork \
             --title "Update from ${{ steps.repo_name.outputs.upstream_branch }} branch in upstream repository" \
-            --body "$pr_body" || true
+            --body-file "$pr_body_file" || true
         fi
+
+        # Clean up temp file
+        rm -f "$pr_body_file"
       env:
         GITHUB_TOKEN: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
 
