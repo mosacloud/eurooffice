@@ -80,12 +80,7 @@ jobs:
         pr_body="This pull request updates the \`fork\` branch with changes from the \`${{ steps.repo_name.outputs.upstream_branch }}\` branch in the upstream repository."
 
         if [ -n "$skipped_commits" ]; then
-          pr_body="${pr_body}
-
-## ⚠️ Skipped commits (merge conflicts)
-
-The following commits could not be applied due to conflicts and must be cherry-picked manually:
-${skipped_commits}"
+          pr_body="${pr_body}"$'\n\n## ⚠️ Skipped commits (merge conflicts)\n\nThe following commits could not be applied due to conflicts and must be cherry-picked manually:\n'"${skipped_commits}"
         fi
 
         # Create PR or update body of existing one
