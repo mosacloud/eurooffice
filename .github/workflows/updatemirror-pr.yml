@@ -87,6 +87,8 @@ jobs:
         pr_body_file=$(mktemp)
         echo "$pr_body" > "$pr_body_file"
 
+        printf "PR body:\n%s\n" "$pr_body"
+
         # Create PR or update body of existing one
         pr_url=$(gh pr view \
           --repo "Euro-Office/${{ steps.repo_name.outputs.repo }}" \
