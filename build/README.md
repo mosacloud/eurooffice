@@ -7,12 +7,13 @@ Docker image where we are experimenting with building the OnlyOffice Document Se
 First, clone the repositories for the core-fonts, sdkjs, web-apps, and server components:
 
 ```sh
-git clone https://github.com/Euro-Office/fork.git
-git clone https://github.com/Euro-Office/core.git
-git clone https://github.com/Euro-Office/core-fonts.git
-git clone https://github.com/Euro-Office/sdkjs.git
-git clone https://github.com/Euro-Office/web-apps.git
-git clone https://github.com/Euro-Office/server.git
+git clone git@github.com:Euro-Office/fork.git
+git clone git@github.com:Euro-Office/core.git
+git clone git@github.com:Euro-Office/core-fonts.git
+git clone git@github.com:Euro-Office/dictionaries.git
+git clone git@github.com:Euro-Office/sdkjs.git
+git clone git@github.com:Euro-Office/web-apps.git
+git clone git@github.com:Euro-Office/server.git
 ```
 
 
