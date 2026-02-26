@@ -3,7 +3,7 @@
 FROM onlyoffice/documentserver:latest AS upstream
 
 ARG BUILD_ROOT=/package
-ARG TARGET_CPU=x64
+ARG TARGETARCH=x64
 
 #### BASE ####
 
@@ -79,7 +79,6 @@ cmake -GNinja \
 
 cmake --build .
 EOF
-
 
 
 #### CORE WASM ####
@@ -178,17 +177,17 @@ COPY server/ /server
 
 ENV BUILD_ROOT=${BUILD_ROOT}
 
-RUN TARGETCPU_PKG=$(echo "$TARGET_CPU" | sed 's/aarch64/arm64/') && \
+RUN TARGETARCH_PKG=$(echo "$TARGETARCH" | sed 's/aarch64/arm64/') && \
     cd /server/Common && \
     sed "s|\(const buildVersion = \).*|\1'${PRODUCT_VERSION}';|" -i sources/commondefines.js && \
     cd /server/DocService && \
-    pkg . -t linux-"$TARGETCPU_PKG" --node-options="--max_old_space_size=4096" -o "${BUILD_ROOT}/docservice" && \
+    pkg . -t linux-"$TARGETARCH_PKG" --node-options="--max_old_space_size=4096" -o "${BUILD_ROOT}/docservice" && \
     cd /server/FileConverter && \
-    pkg . -t linux-"$TARGETCPU_PKG" --node-options="--max_old_space_size=4096" -o "${BUILD_ROOT}/fileconverter" && \
+    pkg . -t linux-"$TARGETARCH_PKG" --node-options="--max_old_space_size=4096" -o "${BUILD_ROOT}/fileconverter" && \
     cd /server/Metrics && \
-    pkg . -t linux-"$TARGETCPU_PKG" --node-options="--max_old_space_size=4096" -o "${BUILD_ROOT}/metrics" && \
+    pkg . -t linux-"$TARGETARCH_PKG" --node-options="--max_old_space_size=4096" -o "${BUILD_ROOT}/metrics" && \
     cd /server/AdminPanel/server && \
-    pkg . -t linux-"$TARGETCPU_PKG" --node-options="--max_old_space_size=4096" -o "${BUILD_ROOT}/adminpanel"
+    pkg . -t linux-"$TARGETARCH_PKG" --node-options="--max_old_space_size=4096" -o "${BUILD_ROOT}/adminpanel"
 
 RUN cd /server/AdminPanel/client && npm run build
 
@@ -198,8 +197,8 @@ FROM base AS build-example
     RUN --mount=type=cache,target=/root/.npm cd /app/build && npm install
     COPY document-server-integration/web/documentserver-example/nodejs /app
     WORKDIR /app
-    RUN TARGETCPU_PKG=$(echo "$TARGET_CPU" | sed 's/aarch64/arm64/') && \
-    pkg . -t linux-"$TARGETCPU_PKG" --node-options="--max_old_space_size=4096" -o /app/example
+    RUN TARGETARCH_PKG=$(echo "$TARGETARCH" | sed 's/aarch64/arm64/') && \
+    pkg . -t linux-"$TARGETARCH_PKG" --node-options="--max_old_space_size=4096" -o /app/example
 
 FROM scratch AS example
     COPY --from=build-example /app/ /example
