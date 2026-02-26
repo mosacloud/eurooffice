@@ -14,6 +14,7 @@ git clone git@github.com:Euro-Office/dictionaries.git
 git clone git@github.com:Euro-Office/sdkjs.git
 git clone git@github.com:Euro-Office/web-apps.git
 git clone git@github.com:Euro-Office/server.git
+git clone git@github.com:Euro-Office/document-templates.git
 ```
 
 

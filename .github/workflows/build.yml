@@ -100,6 +100,14 @@ jobs:
           ref: 'master'
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
 
+      - name: Checkout dictionaries
+        uses: actions/checkout@v6
+        with:
+          repository: euro-office/document-templates
+          path: document-templates/
+          ref: 'master'
+          token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+
       - name: Cache clones
         uses: actions/cache@v4
         with:
