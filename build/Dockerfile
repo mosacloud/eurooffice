@@ -250,6 +250,7 @@ FROM ubuntu:24.04 AS finalubuntu
 
     ## Copy dictionary
     COPY dictionaries /var/www/onlyoffice/documentserver/dictionaries
+    COPY document-templates /var/www/onlyoffice/documentserver/document-templates
 
     ## Copy server builds
     COPY --from=server ${BUILD_ROOT}/docservice    ${EO_ROOT}/server/DocService/docservice
