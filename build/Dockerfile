@@ -5,7 +5,7 @@ FROM onlyoffice/documentserver:latest AS upstream
 ARG BUILD_ROOT=/package
 
 #### BASE ####
-FROM debian:trixie AS base
+FROM ubuntu:24.04 AS base
     RUN apt update && \
         apt install -y nodejs npm openjdk-21-jdk wget zip brotli && \
         npm install -g @yao-pkg/pkg grunt-cli
