@@ -16,3 +16,6 @@
 [submodule "document-server-integration"]
 	path = document-server-integration
 	url = git@github.com:Euro-Office/document-server-integration.git
+[submodule "dictionaries"]
+	path = dictionaries
+	url = git@github.com:Euro-Office/dictionaries.git
