@@ -10,6 +10,10 @@ First, clone the repositories for the core-fonts, sdkjs, web-apps, and server co
 git clone --recurse-submodules https://github.com/Euro-Office/fork.git
 ```
 
+If the repo was cloned without --recurse-submodules, initialize and download the submodules with:
+```sh
+git submodule update --init --recursive
+```
 
 Then, you can build the full image by running:
 
@@ -37,4 +41,15 @@ After building the image, you can run it with a simple `docker run` or with:
 
 ```sh
 make run
+```
+
+If the docker build stockes because of broken content in cache, for example with error:
+```sh
+> Skipping ICU (done already).
+> Skipping OpenSSL (done already).
+> cannot change to '/build-cache1/third_party/workdir/icu/icu': No such file or directory
+```
+pruning the docker build cache might help:
+```sh
+docker builder prune -a
 ```

@@ -19,3 +19,4 @@
 [submodule "dictionaries"]
 	path = dictionaries
 	url = git@github.com:Euro-Office/dictionaries.git
+	branch = master
