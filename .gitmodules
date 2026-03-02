@@ -23,4 +23,4 @@
 [submodule "document-templates"]
 	path = document-templates
 	url = git@github.com:Euro-Office/document-templates.git
-	branch = master 
+	branch = master
