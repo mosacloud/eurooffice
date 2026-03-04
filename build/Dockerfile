@@ -130,7 +130,7 @@ FROM base AS web-apps
 
     ARG TARGETARCH
     RUN cd app/build && \
-        THEME=nextcloud grunt $(if [ "$TARGETARCH" = "arm64" ]; then echo "--skip-imagemin"; fi)
+        THEME=euro-office grunt $(if [ "$TARGETARCH" = "arm64" ]; then echo "--skip-imagemin"; fi)
 
 #### SERVER ####
 FROM base AS server
@@ -353,4 +353,4 @@ FROM finalubuntu AS develop
     # hardcoded for now. todo: get from whatever is defined in upstream
     ENV PRODUCT_VERSION=${PRODUCT_VERSION}
     ENV EO_DEV=/develop
-    ENV THEME=nextcloud
+    ENV THEME=euro-office

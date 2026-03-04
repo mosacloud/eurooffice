@@ -84,7 +84,7 @@ make web-apps
 ```
 
 #### Quick rebuild
-without npm ci, imagemin, or babel. Runs with the Nextcloud theme.
+without npm ci, imagemin, or babel. Runs with the Euro Office theme.
 
 ```sh
 make web-apps-dev
@@ -94,7 +94,7 @@ make web-apps-dev
 Use `CFLAGS` to pass additional flags
 
 ```sh
-THEME=nextcloud make web-apps-dev CFLAGS="--skip-imagemin"
+THEME=euro-office make web-apps-dev CFLAGS="--skip-imagemin"
 ````
 > The make build commands clear the cache, this does not.
 > Therefore you must run `/usr/bin/documentserver-flush-cache.sh`
