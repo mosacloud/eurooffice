@@ -1,21 +1,14 @@
-# Bring in the upstream OnlyOffice Document Server image so that
-# we can extract things from it later
-FROM onlyoffice/documentserver:latest AS upstream
-
-ARG BUILD_ROOT=/package
-ARG TARGETARCH=x64
-
 #### BASE ####
-
 FROM ubuntu:24.04 AS base
-    RUN apt update && \
-        apt install -y ca-certificates curl gnupg openjdk-21-jdk wget zip brotli && \
+    RUN apt-get update && \
+        apt-get install -y ca-certificates curl gnupg openjdk-21-jdk wget zip brotli && \
         curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-        apt install -y nodejs && \
-        npm install -g @yao-pkg/pkg grunt-cli
+        apt-get install -y nodejs && \
+        npm install -g @yao-pkg/pkg grunt-cli && \
+        rm -rf /var/lib/apt/lists/*
 
 #### CORE ####
-FROM ubuntu AS core
+FROM ubuntu:24.04 AS core
 ARG BUILD_ROOT=/package
 
 ENV TZ=Etc/UTC
@@ -29,21 +22,23 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone &
         build-essential make cmake ninja-build pkg-config \
         libglib2.0-dev \
         python3 python-is-python3 python3-venv python3-setuptools \
+        python3-httplib2 \
         lsb-release libboost-all-dev findutils \
         gn \
-    && rm -rf /var/lib/apt/lists/* 
-#clang lld llvm libclang-rt-dev \
-#        libclang-dev \
-# Installiere Clang 13
-RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - && \
-    echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-13 main" > /etc/apt/sources.list.d/llvm-13.list && \
-    apt-get update && apt-get install -y clang-13 lld-13 llvm-13-dev llvm-13 \ 
-    libc++-13-dev \
-libc++abi-13-dev \
-    qemu-user-static binfmt-support && \
+    && rm -rf /var/lib/apt/lists/*
+
+# clang-13 required for V8 9.x — only available on jammy (22.04), not noble (24.04)
+RUN wget -qO - https://apt.llvm.org/llvm-snapshot.gpg.key | \
+    gpg --dearmor -o /etc/apt/keyrings/llvm-snapshot.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/llvm-snapshot.gpg] http://apt.llvm.org/jammy/ llvm-toolchain-jammy-13 main" \
+    > /etc/apt/sources.list.d/llvm-13.list && \
+    apt-get update && apt-get install -y \
+        clang-13 lld-13 llvm-13-dev llvm-13 \
+        libc++-13-dev libc++abi-13-dev \
+        qemu-user-static binfmt-support && \
     rm -rf /var/lib/apt/lists/*
 
-# Setze Clang 13 als Standard
+# set clang 13 as standard
 RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-13 100 && \
     update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-13 100 && \
     update-alternatives --install /usr/bin/llvm-ar llvm-ar /usr/bin/llvm-ar-13 100 && \
@@ -71,8 +66,8 @@ cd /build-cache
 
 cmake -GNinja \
   -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_CXX_FLAGS_RELEASE="-O3" \
-  -DCMAKE_C_FLAGS_RELEASE="-O3" \
+  -DCMAKE_CXX_FLAGS_RELEASE="-O3 -w" \
+  -DCMAKE_C_FLAGS_RELEASE="-O3 -w" \
   -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT}/bin \
   -DEO_CORE_TOOLS_DIR=${BUILD_ROOT}/tools \
   /core
@@ -100,18 +95,19 @@ EOF
 
 #### SDKJS ####
 FROM base AS sdkjs
+ARG TARGETARCH
 ARG BUILD_ROOT=/package
 
 COPY sdkjs/build/package*.json /app/build/
 
 RUN --mount=type=cache,target=/root/.npm \
-    cd app/build && npm install
+    cd /app/build && npm install
 
 COPY sdkjs/ /app
 
 ENV BUILD_ROOT=${BUILD_ROOT}
 
-RUN cd app/build && grunt
+RUN cd /app/build && grunt
 
     ## Copy core wasm builds
     COPY --from=core-wasm ${BUILD_ROOT}/engine/ /app/pdf/src/engine/
@@ -120,12 +116,12 @@ RUN cd app/build && grunt
     COPY --from=core-wasm ${BUILD_ROOT}/spell/ /app/common/spell/
     COPY --from=core-wasm ${BUILD_ROOT}/libfont/ /app/common/libfont/
 
-    ARG TARGETARCH
-    RUN cd app/build && \
+    RUN cd /app/build && \
         CC_PLATFORM=$(if [ "$TARGETARCH" = "arm64" ]; then echo "java"; else echo "native,java"; fi) grunt
 
 #### WEB-APPS ####
 FROM base AS web-apps
+ARG TARGETARCH
 ARG PRODUCT_VERSION
 ARG BUILD_ROOT=/package
 
@@ -134,24 +130,23 @@ COPY web-apps/build/sprites/package*.json /app/build/sprites/
 COPY web-apps/build/plugins/grunt-inline/ /app/build/plugins/grunt-inline/
 
 RUN --mount=type=cache,target=/root/.npm \
-     cd app/build && npm install
+     cd /app/build && npm install
 
 RUN npm install --save-dev imagemin-gifsicle imagemin-jpegtran imagemin-optipng imagemin-svgo || true
 
 COPY web-apps/ /app
 
-    ENV PRODUCT_VERSION=${PRODUCT_VERSION}
-    ENV BUILD_ROOT=${BUILD_ROOT}
+ENV PRODUCT_VERSION=${PRODUCT_VERSION}
+ENV BUILD_ROOT=${BUILD_ROOT}
 
-    ARG TARGETARCH
-    RUN cd app/build && \
-        THEME=nextcloud grunt --force $(if [ "$TARGETARCH" = "arm64" ]; then echo "--skip-imagemin"; fi)
+RUN cd /app/build && \
+    THEME=nextcloud grunt --force $(if [ "$TARGETARCH" = "arm64" ]; then echo "--skip-imagemin"; fi)
 
 #### SERVER ####
 FROM base AS server
-    ARG PRODUCT_VERSION
-    ARG BUILD_ROOT=/package
-    ARG TARGETARCH
+ARG TARGETARCH
+ARG PRODUCT_VERSION
+ARG BUILD_ROOT=/package
 
 ENV PRODUCT_VERSION=${PRODUCT_VERSION}
 
@@ -177,7 +172,7 @@ COPY server/ /server
 
 ENV BUILD_ROOT=${BUILD_ROOT}
 
-RUN TARGETARCH_PKG=$(echo "$TARGETARCH" | sed 's/aarch64/arm64/') && \
+RUN TARGETARCH_PKG=$(echo "$TARGETARCH" | sed 's/amd64/x64/') && \
     cd /server/Common && \
     sed "s|\(const buildVersion = \).*|\1'${PRODUCT_VERSION}';|" -i sources/commondefines.js && \
     cd /server/DocService && \
@@ -193,12 +188,13 @@ RUN cd /server/AdminPanel/client && npm run build
 
 #### DOCUMENTSERVER-EXAMPLE ####
 FROM base AS build-example
-    COPY document-server-integration/web/documentserver-example/nodejs/package*.json /app/build/
-    RUN --mount=type=cache,target=/root/.npm cd /app/build && npm install
-    COPY document-server-integration/web/documentserver-example/nodejs /app
-    WORKDIR /app
-    RUN TARGETARCH_PKG=$(echo "$TARGETARCH" | sed 's/aarch64/arm64/') && \
-    pkg . -t linux-"$TARGETARCH_PKG" --node-options="--max_old_space_size=4096" -o /app/example
+ARG TARGETARCH
+COPY document-server-integration/web/documentserver-example/nodejs/package*.json /app/build/
+RUN --mount=type=cache,target=/root/.npm cd /app/build && npm install
+COPY document-server-integration/web/documentserver-example/nodejs /app
+WORKDIR /app
+RUN TARGETARCH_PKG=$(echo "$TARGETARCH" | sed 's/amd64/x64/') && \
+pkg . -t linux-"$TARGETARCH_PKG" --node-options="--max_old_space_size=4096" -o /app/example
 
 FROM scratch AS example
     COPY --from=build-example /app/ /example
@@ -219,7 +215,8 @@ ENV EO_CONF=${EO_CONF}
 RUN apt-get -y update && \
     ACCEPT_EULA=Y apt-get -yq install \
         postgresql postgresql-client redis-server rabbitmq-server \
-        nginx sudo gdb nginx-extras supervisor jq util-linux
+        nginx sudo gdb nginx-extras supervisor jq util-linux && \
+    rm -rf /var/lib/apt/lists/*
 
 # Create the 'ds' user that is required by OnlyOffice scripts
 RUN useradd -r -s /bin/false ds || true
@@ -249,9 +246,9 @@ COPY --from=core ${BUILD_ROOT}/bin/ ${EO_ROOT}/server/FileConverter/bin/
 COPY --from=core ${BUILD_ROOT}/tools/ ${EO_ROOT}/server/tools/
 
 # Copy ICU libraries from the package root in core stage
-RUN mkdir -p ${EO_ROOT}/server/FileConverter/lib ${EO_ROOT}/server/tools && \
-    cp /package/*.so* ${EO_ROOT}/server/FileConverter/lib/ 2>/dev/null || true && \
-    cp /package/tools/*.so* ${EO_ROOT}/server/tools/ 2>/dev/null || true
+RUN mkdir -p ${EO_ROOT}/server/FileConverter/lib ${EO_ROOT}/server/tools
+COPY --from=core ${BUILD_ROOT}/*.so* ${EO_ROOT}/server/FileConverter/lib/
+COPY --from=core ${BUILD_ROOT}/tools/*.so* ${EO_ROOT}/server/tools/
 
 COPY --from=server ${BUILD_ROOT}/docservice    ${EO_ROOT}/server/DocService/docservice
 COPY --from=server ${BUILD_ROOT}/fileconverter ${EO_ROOT}/server/FileConverter/converter
@@ -306,10 +303,13 @@ ENTRYPOINT ["/entrypoint.sh"]
 
 FROM finalubuntu AS develop
 ARG PRODUCT_VERSION
+ENV TZ=Etc/UTC
 
-RUN apt update && \
-    apt install -y nodejs npm openjdk-21-jdk wget zip brotli && \
-    npm install -g @yao-pkg/pkg grunt-cli
+RUN apt-get update && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs npm openjdk-21-jdk wget zip brotli && \
+    npm install -g @yao-pkg/pkg grunt-cli && \
+    rm -rf /var/lib/apt/lists/*
 
     RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
         apt-get -y update && \
@@ -336,7 +336,7 @@ RUN apt update && \
                     autoconf \
                     python3-dev \
                     && \
-        rm -rf /var/lib/apt-get/lists/*
+        rm -rf /var/lib/apt/lists/*
 
     ## Install Emscripten
     RUN wget -qO emsdk.tar.gz https://github.com/emscripten-core/emsdk/archive/main.tar.gz && \
@@ -345,7 +345,6 @@ RUN apt update && \
         /opt/emsdk/emsdk install latest && \
         /opt/emsdk/emsdk activate latest && \
         chmod +x /opt/emsdk/emsdk_env.sh && \
-        /bin/bash -c "source /opt/emsdk/emsdk_env.sh" && \
         rm -rf emsdk.tar.gz
 
     # hardcoded for now. todo: get from whatever is defined in upstream
