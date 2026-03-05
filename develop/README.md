@@ -103,17 +103,22 @@ THEME=euro-office make web-apps-dev CFLAGS="--skip-imagemin"
 
 #### Strip Section 7(b) trademark clause
 
-The upstream AGPL license headers include a Section 7(b) clause requiring retention of the original product logo. Per [FSF guidance](https://www.fsf.org/news/fsf-submits-amicus-brief-in-neo4j-v-suhy), downstream recipients may remove this. Run after upstream merges to strip any re-introduced clauses:
+The upstream AGPL license headers include a Section 7(b) clause requiring retention of the original product logo. Per [FSF guidance](https://www.fsf.org/news/fsf-submits-amicus-brief-in-neo4j-v-suhy), downstream recipients may remove this. Run after upstream merges to strip any re-introduced clauses.
 
 ```sh
-# Inside the container
+# All projects — inside the container
 make strip-logo-clause
 
-# Or on the host from the project root
+# All projects — on the host from the project root
 ./fork/scripts/strip-logo-clause.sh
+
+# Single project only (useful for per-project PRs)
+make strip-logo-clause DIR=web-apps
+./fork/scripts/strip-logo-clause.sh web-apps
 ```
 
-This recursively searches `web-apps/`, `sdkjs/`, `core/`, `server/` and `fork/`, skipping `node_modules/` and `vendor/`.
+Supported project names: `web-apps`, `sdkjs`, `core`, `server`, `fork`.
+Skips `node_modules/` and `vendor/` directories.
 
 ### sdkjs
 
