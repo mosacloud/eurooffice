@@ -22,3 +22,10 @@ build:
 run: build-image
 	@docker run -it --rm -p 8080:80 euro-office/documentserver bash
 
+.PHONY: cache
+cache:
+	@docker build -t third-party:latest --output type=local,dest=$(NUGET_SOURCE_PATH) --build-arg PRODUCT_VERSION=9.2.1 --build-arg BUILD_ROOT=/package --target third-party-export -f ./Dockerfile ../../ 
+
+
+desktop:
+	@docker build --output type=local,dest=./desktopeditors --build-arg PRODUCT_VERSION=9.2.1 --build-arg BUILD_ROOT=/package --target desktop-export -f ./Dockerfile ../../ 

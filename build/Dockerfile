@@ -1,19 +1,95 @@
 # Bring in the upstream OnlyOffice Document Server image so that
 # we can extract things from it later
-FROM onlyoffice/documentserver:latest AS upstream
-
 ARG BUILD_ROOT=/package
 
-#### BASE ####
+ARG NUGET_CACHE=local
+ARG NUGET_SOURCE_PATH=Cache/
+
+FROM onlyoffice/documentserver:latest AS upstream
+
+
+#########################
+###### BASE IMAGES ######
+#########################
+#
+# Images that resolve basic dependencies for building
+#
+
+#### WEB BASE ####
 FROM debian:trixie AS base
     RUN apt update && \
         apt install -y nodejs npm openjdk-21-jdk wget zip brotli && \
         npm install -g @yao-pkg/pkg grunt-cli
 
 
+#### VCPKG BASE ####
+FROM ubuntu:24.04 AS vcpkg-base
 
-#### CORE ####
-FROM ubuntu AS core-base
+    # Avoid interactive prompts during package install
+    ENV DEBIAN_FRONTEND=noninteractive
+
+    # Install system dependencies
+    RUN apt-get update && apt-get install -y \
+        ca-certificates \
+        git \
+        curl \
+        zip \
+        unzip \
+        tar \
+        build-essential \
+        pkg-config \
+        cmake \
+        ninja-build \
+        mono-devel \
+        && rm -rf /var/lib/apt/lists/*
+
+    # Install vcpkg
+    WORKDIR /opt
+    RUN git clone https://github.com/microsoft/vcpkg.git \
+        && cd vcpkg \
+        && ./bootstrap-vcpkg.sh
+
+    # Make vcpkg available globally
+    ENV VCPKG_ROOT=/opt/vcpkg
+    ENV PATH="${VCPKG_ROOT}:${PATH}"
+
+    ENV VCPKG_BINARY_SOURCES="clear;nuget,NuGetCache,readwrite;nugettimeout,3600"
+
+
+FROM vcpkg-base AS vcpkg-local
+
+    #ARG NUGET_SOURCE_PATH=Cache/
+
+    #ENV NUGET_SOURCE_PATH=${NUGET_SOURCE_PATH}
+
+    RUN vcpkg fetch nuget && \
+        mkdir /nuget-cache && \
+        mono $(vcpkg fetch nuget) sources add \
+            -Source "/nuget-cache" \
+            -Name "NuGetCache"
+
+
+FROM vcpkg-base AS vcpkg-remote
+
+    ARG NUGET_REMOTE_URL
+    ARG NUGET_USERNAME
+    ARG NUGET_PASSWORD
+    #ARG NUGET_SOURCE_PATH=.
+
+    #ENV NUGET_SOURCE_PATH=${NUGET_SOURCE_PATH}
+
+    RUN vcpkg fetch nuget && \
+        mono $(vcpkg fetch nuget) sources add \
+            -Source "${NUGET_REMOTE_URL}" \
+            -Name "NuGetCache" \
+            -Username "${NUGET_USERNAME}" \
+            -Password "${NUGET_PASSWORD}" \
+            -StorePasswordInClearText
+
+
+
+#### CORE BASE ####
+FROM vcpkg-${NUGET_CACHE} AS core-base
     ARG BUILD_ROOT=/package
 
     ENV TZ=Etc/UTC
@@ -24,22 +100,19 @@ FROM ubuntu AS core-base
         apt-get -y update && \
         apt-get -y upgrade && \
         apt-get -y install \
-                    git \
-                    curl \
                     sudo \
                     wget \
                     ssh \
-                    build-essential \
                     make \
-                    cmake \
-                    ninja-build \
-                    pkg-config \
                     libglib2.0-dev \
                     python3 \
                     python-is-python3 \
                     lsb-release \
-                    libboost-all-dev \
                     findutils \
+                    autoconf \
+                    autoconf-archive \
+                    automake \
+                    libtool \
                     && \
         rm -rf /var/lib/apt-get/lists/*
 
@@ -47,11 +120,28 @@ FROM ubuntu AS core-base
 
     ENV BUILD_ROOT=${BUILD_ROOT}
 
+#########################
+##### /BASE IMAGES ######
+#########################
+
+
+#########################
+#### BUILDER IMAGES #####
+#########################
+
+FROM core-base AS third-party
+    WORKDIR /core
+
+    RUN vcpkg install
+
+   
+
 
 FROM core-base AS core-amd64
-    RUN --mount=type=cache,target=/build-cache <<EOF
+    RUN --mount=type=cache,target=/build-cache \
+        --mount=type=bind,source=${NUGET_SOURCE_PATH},target=/nuget-cache,rw <<EOF
         cd /build-cache
-        cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" -DCMAKE_C_FLAGS_DEBUG="-g -O0" -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT}/bin -DEO_CORE_TOOLS_DIR=${BUILD_ROOT}/tools /core
+        cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" -DCMAKE_C_FLAGS_DEBUG="-g -O0" -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT}/bin -DEO_CORE_TOOLS_DIR=${BUILD_ROOT}/tools /core
         cmake --build .
 EOF
 
@@ -77,81 +167,21 @@ FROM emscripten/emsdk:latest AS core-wasm
     # hash wasm has one dependency in sdkjs which we must copy here (TODO: fix this)
     COPY sdkjs/common/stringserialize.js /sdkjs/common/stringserialize.js
 
-    RUN --mount=type=cache,target=/build-cache1 <<EOF
-        cd /build-cache1
-        /bin/bash -c "emcmake cmake -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT} /core && cmake --build ."
+    RUN --mount=type=cache,target=/build-cache-wasm \
+        --mount=type=bind,source=${NUGET_SOURCE_PATH},target=/nuget-cache,rw <<EOF
+        cd /build-cache-wasm
+        /bin/bash -c "emcmake cmake -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT} /core && cmake --build ."
 EOF
 
 
-#### Chrome Embedded Framework (CEF)
-FROM ubuntu:18.04 AS cef-builder
-    RUN apt-get -y update && \
-        apt-get -y upgrade && \
-        apt-get -y install \
-        wget \
-        curl \
-        python3 \
-        git \
-        libcups2-dev \
-        libglib2.0-dev \
-        libgtk-3-dev \
-        libx11-xcb-dev \
-        libxi-dev \
-        libxrender-dev \
-        libxrandr-dev \
-        libxinerama-dev \
-        libxcursor-dev \
-        libgirepository1.0-dev \
-        libglib2.0-dev \
-        libcairo2-dev \
-        libnss3-dev \
-        libgnome-keyring-dev \
-        libgbm-dev \
-        gperf \
-        locales \
-        uuid-dev \
-        libcurl4-openssl-dev \
-        libpulse-dev \
-        libasound2-dev \
-        libkrb5-dev \
-        libpci-dev
+#### DESKTOP-APPS JAVASCRIPT ####
+FROM base AS desktop-js
 
-    COPY core /core
+    COPY desktop-apps/common app
 
-
-
-#### DESKTOP-SDK
-FROM core-base AS desktop-sdk
-
-    RUN apt-get -y update && \
-        apt-get -y upgrade && \
-        apt-get -y install \
-                    libgtk-3-dev \
-                    libatk1.0-dev \
-                    pkg-config \
-                    libx11-xcb-dev \
-                    libxkbcommon-x11-dev \
-                    qtbase5-dev \
-                    qtmultimedia5-dev \
-                    libqt5multimedia5-plugins \
-                    libqt5multimediawidgets5 \
-                    libqt5printsupport5 \
-                    libqt5x11extras5-dev \
-                    libqt5svg5-dev \
-                    libnotify-dev \
-                    qttools5-dev \
-                    qttools5-dev-tools \
-                    libcups2-dev \
-                    libdbus-1-dev
-
-    COPY desktop-sdk /desktop-sdk
-
-    #RUN --mount=type=cache,target=/build-cache <<EOF
-    #    cd /build-cache
-    #    cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" -DCMAKE_C_FLAGS_DEBUG="-g -O0" -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT}/bin -DEO_CORE_TOOLS_DIR=${BUILD_ROOT}/tools /desktop-sdk/HtmlFile/Internal
-    #    cmake --build .
-#EOF
-
+    RUN cd app/loginpage/build && \
+        npm install && \
+        grunt
 
 #### SDKJS ####
 FROM base AS sdkjs
@@ -169,11 +199,11 @@ FROM base AS sdkjs
     ENV BUILD_ROOT=${BUILD_ROOT}
 
     ## Copy core wasm builds
-    COPY --from=core-wasm ${BUILD_ROOT}/engine/ /app/pdf/src/engine/
-    COPY --from=core-wasm ${BUILD_ROOT}/zlib/ /app/common/zlib/
-    COPY --from=core-wasm ${BUILD_ROOT}/hash/ /app/common/hash/
-    COPY --from=core-wasm ${BUILD_ROOT}/spell/ /app/common/spell/
-    COPY --from=core-wasm ${BUILD_ROOT}/libfont/ /app/common/libfont/
+    #COPY --from=core-wasm ${BUILD_ROOT}/engine/ /app/pdf/src/engine/
+    #COPY --from=core-wasm ${BUILD_ROOT}/zlib/ /app/common/zlib/
+    #COPY --from=core-wasm ${BUILD_ROOT}/hash/ /app/common/hash/
+    #COPY --from=core-wasm ${BUILD_ROOT}/spell/ /app/common/spell/
+    #COPY --from=core-wasm ${BUILD_ROOT}/libfont/ /app/common/libfont/
 
     ARG TARGETARCH
     RUN cd app/build && \
@@ -201,6 +231,82 @@ FROM base AS web-apps
     ARG TARGETARCH
     RUN cd app/build && \
         THEME=nextcloud grunt $(if [ "$TARGETARCH" = "arm64" ]; then echo "--skip-imagemin"; fi)
+
+
+#### DESKTOP-APPS
+FROM core-base AS desktop-sdk
+
+    RUN apt-get -y update && \
+        apt-get -y upgrade && \ 
+        apt-get -y install \
+                    libgtk-3-dev \
+                    libatk1.0-dev \
+                    libx11-xcb-dev \
+                    libxkbcommon-x11-dev \
+                    python3-venv \
+                    bison \
+                    #qtbase5-dev \
+                    #qtmultimedia5-dev \
+                    #libqt5multimedia5-plugins \
+                    #libqt5multimediawidgets5 \
+                    #libqt5printsupport5 \
+                    #libqt5x11extras5-dev \
+                    #libqt5svg5-dev \
+                    #qttools5-dev \
+                    #qttools5-dev-tools \
+                    libnotify-dev \
+                    libcups2-dev \
+                    libdbus-1-dev \
+                    libxcb-util0-dev \
+                    libxcb-xkb-dev \
+                    libxcb-cursor-dev \
+                    libxcb-xinput-dev \
+                    build-essential \
+                    ninja-build \
+                    python3-venv \
+                    pkg-config \
+                    libx11-dev \
+                    libx11-xcb-dev \
+                    libxcb1-dev \
+                    libxcb-render0-dev \
+                    libxcb-shape0-dev \
+                    libxcb-xfixes0-dev \
+                    libxcb-randr0-dev \
+                    libxcb-keysyms1-dev \
+                    libxcb-image0-dev \
+                    libxcb-icccm4-dev \
+                    libxcb-sync-dev \
+                    libxcb-xinerama0-dev \
+                    libxcb-util-dev \
+                    libxrender-dev \
+                    libxi-dev \
+                    libxkbcommon-dev \
+                    libxkbcommon-x11-dev \
+                    libgl1-mesa-dev \
+                    libegl1-mesa-dev \
+                    libdbus-1-dev \
+                    libasound2-dev
+
+    COPY desktop-sdk /desktop-sdk
+    COPY desktop-apps /desktop-apps
+
+    RUN --mount=type=cache,target=/build-cache-desktop \
+        --mount=type=bind,source=${NUGET_SOURCE_PATH},target=/nuget-cache,rw <<EOF
+        cd /build-cache-desktop
+        cmake -GNinja -DVCPKG_TARGET_TRIPLET=x64-linux-dynamic -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_MANIFEST_MODE=ON -DVCPKG_MANIFEST_DIR="/core" -DEO_CORE_OUTPUT_DIR=/desktopeditors/converter /desktop-apps/win-linux/
+        cmake --build .
+        cmake --install .
+EOF
+    COPY --from=sdkjs ${BUILD_ROOT} /desktopeditors/editors
+    COPY --from=web-apps ${BUILD_ROOT} /desktopeditors/editors
+
+    COPY --from=desktop-js /app/converter/* /desktopeditors/converter
+    COPY --from=desktop-js /app/loginpage/deploy/* /desktopeditors
+
+    COPY dictionaries /desktopeditors
+
+FROM scratch AS desktop-export
+    COPY --from=desktop-sdk /desktopeditors /
 
 #### SERVER ####
 FROM base AS server
@@ -265,6 +371,18 @@ FROM base AS server
 
     RUN cd /server/AdminPanel/client && \
         npm run build
+
+#########################
+#### /BUILDER IMAGES ####
+#########################
+
+
+#########################
+##### RESULT IMAGES #####
+#########################
+
+FROM scratch AS third-party-export
+    COPY --from=third-party /nuget-cache /
 
 #### FINAL UBUNTU ####
 FROM ubuntu:24.04 AS finalubuntu
@@ -400,7 +518,6 @@ FROM finalubuntu AS develop
                     python3 \
                     python-is-python3 \
                     lsb-release \
-                    libboost-all-dev \
                     tar \
                     xz-utils \
                     libtool-bin \
@@ -423,3 +540,7 @@ FROM finalubuntu AS develop
     ENV PRODUCT_VERSION=${PRODUCT_VERSION}
     ENV EO_DEV=/develop
     ENV THEME=nextcloud
+
+#########################
+#### /RESULT IMAGES #####
+#########################
