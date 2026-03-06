@@ -174,15 +174,6 @@ FROM emscripten/emsdk:latest AS core-wasm
 EOF
 
 
-#### DESKTOP-APPS JAVASCRIPT ####
-FROM base AS desktop-js
-
-    COPY desktop-apps/common app
-
-    RUN cd app/loginpage/build && \
-        npm install && \
-        grunt
-
 #### SDKJS ####
 FROM base AS sdkjs
 
@@ -233,6 +224,15 @@ FROM base AS web-apps
         THEME=nextcloud grunt $(if [ "$TARGETARCH" = "arm64" ]; then echo "--skip-imagemin"; fi)
 
 
+#### DESKTOP-APPS JAVASCRIPT ####
+FROM base AS desktop-js
+
+    COPY desktop-apps/common app
+
+    RUN cd app/loginpage/build && \
+        npm install && \
+        grunt
+
 #### DESKTOP-APPS
 FROM core-base AS desktop-sdk
 
@@ -241,7 +241,6 @@ FROM core-base AS desktop-sdk
         apt-get -y install \
                     libgtk-3-dev \
                     libatk1.0-dev \
-                    libx11-xcb-dev \
                     libxkbcommon-x11-dev \
                     python3-venv \
                     bison \
@@ -263,7 +262,6 @@ FROM core-base AS desktop-sdk
                     libxcb-xinput-dev \
                     build-essential \
                     ninja-build \
-                    python3-venv \
                     pkg-config \
                     libx11-dev \
                     libx11-xcb-dev \
@@ -284,26 +282,31 @@ FROM core-base AS desktop-sdk
                     libxkbcommon-x11-dev \
                     libgl1-mesa-dev \
                     libegl1-mesa-dev \
-                    libdbus-1-dev \
                     libasound2-dev
 
     COPY desktop-sdk /desktop-sdk
     COPY desktop-apps /desktop-apps
 
-    RUN --mount=type=cache,target=/build-cache-desktop \
-        --mount=type=bind,source=${NUGET_SOURCE_PATH},target=/nuget-cache,rw <<EOF
+    ARG CACHE_BUST=1
+
+    RUN --mount=type=cache,target=/build-cache-desktop,id=build-cache-desktop-${CACHE_BUST} \
+        --mount=type=cache,target=/nuget-cache,id=nuget-cache-${CACHE_BUST} <<EOF
+        rm -r /desktopeditors
         cd /build-cache-desktop
         cmake -GNinja -DVCPKG_TARGET_TRIPLET=x64-linux-dynamic -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_MANIFEST_MODE=ON -DVCPKG_MANIFEST_DIR="/core" -DEO_CORE_OUTPUT_DIR=/desktopeditors/converter /desktop-apps/win-linux/
+        cmake --build . --target clean
         cmake --build .
         cmake --install .
+        cp -r /nuget-cache /nuget-cache-bak
+        cp -r /build-cache-desktop /build
 EOF
-    COPY --from=sdkjs ${BUILD_ROOT} /desktopeditors/editors
-    COPY --from=web-apps ${BUILD_ROOT} /desktopeditors/editors
+    COPY --from=sdkjs ${BUILD_ROOT} /desktopeditors/editors/
+    COPY --from=web-apps ${BUILD_ROOT} /desktopeditors/editors/
 
-    COPY --from=desktop-js /app/converter/* /desktopeditors/converter
-    COPY --from=desktop-js /app/loginpage/deploy/* /desktopeditors
+    COPY --from=desktop-js /app/converter/* /desktopeditors/converter/
+    COPY --from=desktop-js /app/loginpage/deploy/* /desktopeditors/
 
-    COPY dictionaries /desktopeditors
+    COPY dictionaries/ /desktopeditors/dictionaries
 
 FROM scratch AS desktop-export
     COPY --from=desktop-sdk /desktopeditors /
