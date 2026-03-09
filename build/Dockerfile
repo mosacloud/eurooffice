@@ -139,8 +139,8 @@ COPY web-apps/ /app
 ENV PRODUCT_VERSION=${PRODUCT_VERSION}
 ENV BUILD_ROOT=${BUILD_ROOT}
 
-RUN cd /app/build && \
-    THEME=nextcloud grunt --force $(if [ "$TARGETARCH" = "arm64" ]; then echo "--skip-imagemin"; fi)
+RUN cd app/build && \
+        THEME=euro-office grunt $(if [ "$TARGETARCH" = "arm64" ]; then echo "--skip-imagemin"; fi)
 
 #### SERVER ####
 FROM base AS server
@@ -350,4 +350,4 @@ RUN apt-get update && \
     # hardcoded for now. todo: get from whatever is defined in upstream
     ENV PRODUCT_VERSION=${PRODUCT_VERSION}
     ENV EO_DEV=/develop
-    ENV THEME=nextcloud
+    ENV THEME=euro-office

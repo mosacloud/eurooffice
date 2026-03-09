@@ -18,6 +18,7 @@ services:
       ALLOW_PRIVATE_IP_ADDRESS: true
       USE_UNAUTHORIZED_STORAGE: true
       JWT_SECRET: secret
+      THEME: euro-office
     volumes:
       - ../:/develop # mounts deployed files to application
       - ./setup/Makefile:/Makefile # mounts deployed files to application
