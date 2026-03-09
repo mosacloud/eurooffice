@@ -131,6 +131,7 @@ jobs:
             PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
             BUILD_ROOT=${{ env.BUILD_ROOT }}}
           labels: ${{ steps.meta.outputs.labels }}
+          no-cache: ${{ matrix.target == 'core' }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.target }}-buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.target }}-buildcache,mode=max
 
