@@ -99,6 +99,27 @@ THEME=euro-office make web-apps-dev CFLAGS="--skip-imagemin"
 > The make build commands clear the cache, this does not.
 > Therefore you must run `/usr/bin/documentserver-flush-cache.sh`
 
+### Maintenance
+
+#### Strip Section 7(b) trademark clause
+
+The upstream AGPL license headers include a Section 7(b) clause requiring retention of the original product logo. Per [FSF guidance](https://www.fsf.org/news/fsf-submits-amicus-brief-in-neo4j-v-suhy), downstream recipients may remove this. Run after upstream merges to strip any re-introduced clauses.
+
+```sh
+# All projects — inside the container
+make strip-logo-clause
+
+# All projects — on the host from the project root
+./fork/scripts/strip-logo-clause.sh
+
+# Single project only (useful for per-project PRs)
+make strip-logo-clause DIR=web-apps
+./fork/scripts/strip-logo-clause.sh web-apps
+```
+
+Supported project names: `web-apps`, `sdkjs`, `core`, `server`, `fork`.
+Skips `node_modules/` and `vendor/` directories.
+
 ### sdkjs
 
 #### Full sdkjs build

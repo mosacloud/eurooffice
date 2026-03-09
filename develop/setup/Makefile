@@ -197,3 +197,13 @@ server/adminp/cli: server/common
 	cd $(EO_DEV)/server/AdminPanel/client && \
 	npm install && \
 	BUILD_ROOT=$(EO_ROOT)/server/AdminPanel/client npm run build $(CFLAGS)
+
+## -----------------
+## MAINTENANCE
+## -----------------
+
+# Strip AGPL Section 7(b) trademark clause from source files.
+# Usage: make strip-logo-clause          (all projects)
+#        make strip-logo-clause DIR=web-apps  (single project)
+strip-logo-clause:
+	$(EO_DEV)/fork/scripts/strip-logo-clause.sh $(DIR)
