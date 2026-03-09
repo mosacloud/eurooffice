@@ -57,10 +57,11 @@ COPY core /core
 
 ENV BUILD_ROOT=${BUILD_ROOT}
 
-RUN <<EOF
+RUN --mount=type=cache,target=/build-cache \
+    --mount=type=cache,target=/package/third_party/install \
+<<EOF
 set -e
 mkdir -p ${BUILD_ROOT}
-mkdir -p /build-cache
 cd /build-cache
 
 cmake -GNinja \
