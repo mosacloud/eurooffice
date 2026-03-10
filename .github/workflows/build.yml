@@ -7,22 +7,22 @@ on:
       core_branch:
         description: 'Branch core'
         required: false
-        default: 'fork'
+        default: ''
         type: string
       sdkjs_branch:
         description: 'Branch for sdkjs'
         required: false
-        default: 'fork'
+        default: ''
         type: string
       web_apps_branch:
         description: 'Branch for web-apps'
         required: false
-        default: 'fork'
+        default: ''
         type: string
       server_branch:
         description: 'Branch for server'
         required: false
-        default: 'fork'
+        default: ''
         type: string
 
 env:
@@ -45,10 +45,10 @@ jobs:
       - name: Align submodules to requested branches
         shell: bash
         env:
-          CORE_BRANCH:    ${{ github.event.inputs.core_branch || 'fork' }}
-          SDKJS_BRANCH:   ${{ github.event.inputs.sdkjs_branch || 'fork' }}
-          WEBAPPS_BRANCH: ${{ github.event.inputs.web_apps_branch || 'fork' }}
-          SERVER_BRANCH:  ${{ github.event.inputs.server_branch || 'fork' }}
+          CORE_BRANCH:    ${{ github.event.inputs.core_branch || '' }}
+          SDKJS_BRANCH:   ${{ github.event.inputs.sdkjs_branch || '' }}
+          WEBAPPS_BRANCH: ${{ github.event.inputs.web_apps_branch || '' }}
+          SERVER_BRANCH:  ${{ github.event.inputs.server_branch || '' }}
         run: |
           set -euo pipefail
 
@@ -63,13 +63,21 @@ jobs:
             popd > /dev/null
           }
 
-          checkout_submodule core                "$CORE_BRANCH"
-          checkout_submodule core-fonts          "$CORE_BRANCH"
-          checkout_submodule sdkjs               "$SDKJS_BRANCH"
-          checkout_submodule web-apps            "$WEBAPPS_BRANCH"
-          checkout_submodule server              "$SERVER_BRANCH"
-          checkout_submodule dictionaries        "master"
-          checkout_submodule document-templates  "master"
+          # Only override if explicitly requested via workflow_dispatch.
+          # On a normal PR push, use whatever commit the parent repo has pinned —
+          # this is the correct behaviour: the submodule SHA in fork IS the source
+          # of truth for which core commit to build.
+          [ -n "$CORE_BRANCH" ]    && checkout_submodule core      "$CORE_BRANCH"
+          [ -n "$SDKJS_BRANCH" ]   && checkout_submodule sdkjs     "$SDKJS_BRANCH"
+          [ -n "$WEBAPPS_BRANCH" ] && checkout_submodule web-apps  "$WEBAPPS_BRANCH"
+          [ -n "$SERVER_BRANCH" ]  && checkout_submodule server    "$SERVER_BRANCH"
+
+          # These always track master, no pin needed
+          checkout_submodule dictionaries       "master"
+          checkout_submodule document-templates "master"
+
+          echo "--- Submodule state after alignment ---"
+          git submodule status
 
       - name: Cache clones
         uses: actions/cache@v4
@@ -101,18 +109,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        id: buildx
-
-      # Prune the correct builder AFTER it is set up.
-      # This clears both the layer cache AND the --mount=type=cache volumes
-      # so cmake is forced to re-run from scratch including the gmock patch.
-      - name: Clear BuildKit cache (core only)
-        if: matrix.target == 'core'
-        run: |
-          docker buildx prune \
-            --builder ${{ steps.buildx.outputs.name }} \
-            --all \
-            --force
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -144,9 +140,7 @@ jobs:
             PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
             BUILD_ROOT=${{ env.BUILD_ROOT }}
           labels: ${{ steps.meta.outputs.labels }}
-          # For core: cache was just pruned above, so no cache-from needed.
-          # For all other targets: pull from their respective registry cache.
-          cache-from: ${{ matrix.target != 'core' && format('type=registry,ref={0}/{1}:{2}-buildcache', env.REGISTRY, env.IMAGE_NAME, matrix.target) || '' }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.target }}-buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.target }}-buildcache,mode=max
 
   build-sdkjs:
