@@ -1,4 +1,13 @@
 {
+  "runtimeConfig": {
+    "filePath": "/var/www/onlyoffice/documentserver/server/Common/config/runtime.json"
+  },
+  "log": {
+    "filePath": "/var/www/onlyoffice/documentserver/log4js.json",
+    "options": {
+      "replaceConsole": true
+    }
+  },
   "services": {
     "CoAuthoring": {
       "sql": {
@@ -44,7 +53,8 @@
         "rejectUnauthorized": true
       },
       "request-filtering-agent": {
-        "allowPrivateIPAddress": false
+          "allowPrivateIPAddress": true,
+          "allowMetaIPAddress": true
       }
 
     }

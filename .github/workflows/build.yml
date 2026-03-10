@@ -7,22 +7,22 @@ on:
       core_branch:
         description: 'Branch core'
         required: false
-        default: 'fork'
+        default: ''
         type: string
       sdkjs_branch:
         description: 'Branch for sdkjs'
         required: false
-        default: 'fork'
+        default: ''
         type: string
       web_apps_branch:
         description: 'Branch for web-apps'
         required: false
-        default: 'fork'
+        default: ''
         type: string
       server_branch:
         description: 'Branch for server'
         required: false
-        default: 'fork'
+        default: ''
         type: string
 
 env:
@@ -30,83 +30,54 @@ env:
   IMAGE_NAME: euro-office/documentserver
   PRODUCT_VERSION: 9.2.1
   BUILD_ROOT: /package
-  #CHECKOUT_REF: ${{ github.event.inputs.ref || 'fork' }}
 
 jobs:
   clone:
     runs-on: self-hosted
     steps:
-      - name: Checkout fork repository
+      - name: Checkout fork repository (with submodules)
         uses: actions/checkout@v6
         with:
+          path: .
           submodules: recursive
-          path: fork/
-
-      - name: Checkout core
-        uses: actions/checkout@v6
-        with:
-          repository: euro-office/core
-          path: core/
-          ref: ${{ github.event.inputs.core_branch || 'fork' }}
-          token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
-          fetch-depth: 0
-
-      - name: Checkout core-fonts
-        uses: actions/checkout@v6
-        with:
-          repository: euro-office/core-fonts
-          path: core-fonts/
-          ref: ${{ env.CHECKOUT_REF }}
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
 
-      - name: Checkout sdkjs-plugins
-        uses: actions/checkout@v6
-        if: false
-        with:
-          repository: euro-office/onlyoffice.github.io
-          path: onlyoffice.github.io/
-          ref: master
-          token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+      - name: Align submodules to requested branches
+        shell: bash
+        env:
+          CORE_BRANCH:    ${{ github.event.inputs.core_branch || '' }}
+          SDKJS_BRANCH:   ${{ github.event.inputs.sdkjs_branch || '' }}
+          WEBAPPS_BRANCH: ${{ github.event.inputs.web_apps_branch || '' }}
+          SERVER_BRANCH:  ${{ github.event.inputs.server_branch || '' }}
+        run: |
+          set -euo pipefail
 
-      - name: Checkout sdkjs
-        uses: actions/checkout@v6
-        with:
-          repository: euro-office/sdkjs
-          path: sdkjs/
-          ref: ${{ github.event.inputs.sdkjs_branch || 'fork' }}
-          token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+          # Helper that checks out a branch inside a submodule
+          checkout_submodule() {
+            local path=$1
+            local branch=$2
+            echo "🔧 Updating $path → $branch"
+            pushd "$path" > /dev/null
+            git fetch origin "${branch}:${branch}"   # ensure the branch exists locally
+            git checkout "$branch"
+            popd > /dev/null
+          }
 
-      - name: Checkout web-apps
-        uses: actions/checkout@v6
-        with:
-          repository: euro-office/web-apps
-          path: web-apps/
-          ref: ${{ github.event.inputs.web_apps_branch || 'fork' }}
-          token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+          # Only override if explicitly requested via workflow_dispatch.
+          # On a normal PR push, use whatever commit the parent repo has pinned —
+          # this is the correct behaviour: the submodule SHA in fork IS the source
+          # of truth for which core commit to build.
+          [ -n "$CORE_BRANCH" ]    && checkout_submodule core      "$CORE_BRANCH"
+          [ -n "$SDKJS_BRANCH" ]   && checkout_submodule sdkjs     "$SDKJS_BRANCH"
+          [ -n "$WEBAPPS_BRANCH" ] && checkout_submodule web-apps  "$WEBAPPS_BRANCH"
+          [ -n "$SERVER_BRANCH" ]  && checkout_submodule server    "$SERVER_BRANCH"
 
-      - name: Checkout server
-        uses: actions/checkout@v6
-        with:
-          repository: euro-office/server
-          path: server/
-          ref: ${{ github.event.inputs.server_branch || 'fork' }}
-          token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+          # These always track master, no pin needed
+          checkout_submodule dictionaries       "master"
+          checkout_submodule document-templates "master"
 
-      - name: Checkout dictionaries
-        uses: actions/checkout@v6
-        with:
-          repository: euro-office/dictionaries
-          path: dictionaries/
-          ref: 'master'
-          token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
-
-      - name: Checkout dictionaries
-        uses: actions/checkout@v6
-        with:
-          repository: euro-office/document-templates
-          path: document-templates/
-          ref: 'master'
-          token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+          echo "--- Submodule state after alignment ---"
+          git submodule status
 
       - name: Cache clones
         uses: actions/cache@v4
@@ -156,17 +127,18 @@ jobs:
             type=ref,event=pr
             type=sha,prefix={{branch}}-${{ matrix.target }}-
             type=raw,value=${{ matrix.target }}-stage
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./fork/build/Dockerfile
+          file: ./build/Dockerfile
           target: ${{ matrix.target }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
             PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
-            BUILD_ROOT=${{ env.BUILD_ROOT }}}
+            BUILD_ROOT=${{ env.BUILD_ROOT }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.target }}-buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.target }}-buildcache,mode=max
@@ -205,22 +177,22 @@ jobs:
             type=ref,event=pr
             type=sha,prefix={{branch}}-sdkjs-
             type=raw,value=sdkjs-stage
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./fork/build/Dockerfile
+          file: ./build/Dockerfile
           target: sdkjs
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
             PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
-            BUILD_ROOT=${{ env.BUILD_ROOT }}}
+            BUILD_ROOT=${{ env.BUILD_ROOT }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:core-wasm-buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sdkjs-buildcache,mode=max
-
 
   combine:
     runs-on: self-hosted
@@ -228,6 +200,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+
     steps:
       - name: Restore cache
         uses: actions/cache/restore@v4
@@ -255,17 +228,18 @@ jobs:
             type=ref,event=pr
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./fork/build/Dockerfile
+          file: ./build/Dockerfile
           target: finalubuntu
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
             PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
-            BUILD_ROOT=${{ env.BUILD_ROOT }}}
+            BUILD_ROOT=${{ env.BUILD_ROOT }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:core-buildcache
@@ -273,7 +247,6 @@ jobs:
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:web-apps-buildcache
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:server-buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:final-buildcache,mode=max
-
 
   build-develop:
     runs-on: self-hosted
@@ -310,17 +283,18 @@ jobs:
             type=sha,prefix={{branch}}-develop-
             type=raw,value=develop-stage
             type=raw,value=latest-dev,enable={{is_default_branch}}
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./fork/build/Dockerfile
+          file: ./build/Dockerfile
           target: develop
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
             PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
-            BUILD_ROOT=${{ env.BUILD_ROOT }}}
+            BUILD_ROOT=${{ env.BUILD_ROOT }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:final-buildcache

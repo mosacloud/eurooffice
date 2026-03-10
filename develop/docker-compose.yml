@@ -4,8 +4,8 @@ services:
   eo:
     image: ghcr.io/euro-office/documentserver:latest-dev
     build:
-      context: ../../
-      dockerfile: ./fork/build/Dockerfile
+      context: ../
+      dockerfile: ./build/Dockerfile
       # finalubuntu for full build, or develop to add build tools to the container
       target: develop
       args:
@@ -20,7 +20,7 @@ services:
       JWT_SECRET: secret
       THEME: euro-office
     volumes:
-      - ../..:/develop # mounts deployed files to application
+      - ../:/develop # mounts deployed files to application
       - ./setup/Makefile:/Makefile # mounts deployed files to application
   nextcloud:
     image: nextcloud:latest
