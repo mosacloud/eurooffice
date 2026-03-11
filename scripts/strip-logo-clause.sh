@@ -109,3 +109,40 @@ for dir in "${DIRS[@]}"; do
 done
 
 echo "Done."
+
+# Offer to commit changes
+TEMPLATE="$SCRIPT_DIR/strip-logo-clause-commit.txt"
+if [ ! -f "$TEMPLATE" ]; then
+    echo "Warning: commit template not found at $TEMPLATE"
+    exit 0
+fi
+
+for dir in "${DIRS[@]}"; do
+    REPO="$PROJECT_ROOT/$dir"
+    if [ ! -d "$REPO/.git" ]; then
+        continue
+    fi
+
+    # Check if there are changes to commit
+    if git -C "$REPO" diff --quiet 2>/dev/null; then
+        continue
+    fi
+
+    COMMIT_MSG=$(sed "s/%DIR%/$dir/g" "$TEMPLATE")
+
+    echo ""
+    echo "=== $dir ==="
+    echo "Proposed commit message:"
+    echo "---"
+    echo "$COMMIT_MSG"
+    echo "---"
+    printf "Commit these changes? [y/N] "
+    read -r answer
+    if [[ "$answer" =~ ^[Yy]$ ]]; then
+        git -C "$REPO" add -A
+        git -C "$REPO" commit -m "$COMMIT_MSG"
+        echo "Committed in $dir."
+    else
+        echo "Skipped $dir."
+    fi
+done
