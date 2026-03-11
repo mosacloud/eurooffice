@@ -170,7 +170,7 @@ FROM emscripten/emsdk:latest AS core-wasm
     RUN --mount=type=cache,target=/build-cache-wasm \
         --mount=type=bind,source=${NUGET_SOURCE_PATH},target=/nuget-cache,rw <<EOF
         cd /build-cache-wasm
-        /bin/bash -c "emcmake cmake -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT} /core && cmake --build ."
+        /bin/bash -c "emcmake cmake -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT} /core && cmake --build ."
 EOF
 
 
@@ -194,7 +194,7 @@ FROM base AS sdkjs
     #COPY --from=core-wasm ${BUILD_ROOT}/zlib/ /app/common/zlib/
     #COPY --from=core-wasm ${BUILD_ROOT}/hash/ /app/common/hash/
     #COPY --from=core-wasm ${BUILD_ROOT}/spell/ /app/common/spell/
-    #COPY --from=core-wasm ${BUILD_ROOT}/libfont/ /app/common/libfont/
+    COPY --from=core-wasm ${BUILD_ROOT}/libfont/ /app/common/libfont/
 
     ARG TARGETARCH
     RUN cd app/build && \
@@ -282,10 +282,13 @@ FROM core-base AS desktop-sdk
                     libxkbcommon-x11-dev \
                     libgl1-mesa-dev \
                     libegl1-mesa-dev \
-                    libasound2-dev
+                    libasound2-dev \
+                    libpulse-dev
 
     COPY desktop-sdk /desktop-sdk
     COPY desktop-apps /desktop-apps
+
+    #COPY gcc_64 /qt5
 
     ARG CACHE_BUST=1
 
@@ -294,7 +297,6 @@ FROM core-base AS desktop-sdk
         rm -r /desktopeditors
         cd /build-cache-desktop
         cmake -GNinja -DVCPKG_TARGET_TRIPLET=x64-linux-dynamic -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_MANIFEST_MODE=ON -DVCPKG_MANIFEST_DIR="/core" -DEO_CORE_OUTPUT_DIR=/desktopeditors/converter /desktop-apps/win-linux/
-        cmake --build . --target clean
         cmake --build .
         cmake --install .
         cp -r /nuget-cache /nuget-cache-bak
