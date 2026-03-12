@@ -117,29 +117,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,prefix={{branch}}-${{ matrix.target }}-
-            type=raw,value=${{ matrix.target }}-stage
-
-      - name: Build and push Docker image
+      - name: Build Docker image (intermediate stage)
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./build/Dockerfile
           target: ${{ matrix.target }}
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          push: false
           build-args: |
             PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
             BUILD_ROOT=${{ env.BUILD_ROOT }}
-          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.target }}-buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.target }}-buildcache,mode=max
 
@@ -167,32 +154,23 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,prefix={{branch}}-sdkjs-
-            type=raw,value=sdkjs-stage
+      - name: Compute safe ref name
+        id: ref
+        run: echo "name=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> $GITHUB_OUTPUT
 
-      - name: Build and push Docker image
+      - name: Build Docker image (intermediate stage)
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./build/Dockerfile
           target: sdkjs
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          push: false
           build-args: |
             PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
             BUILD_ROOT=${{ env.BUILD_ROOT }}
-          labels: ${{ steps.meta.outputs.labels }}
           cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:core-wasm-buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sdkjs-buildcache,mode=max
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-core-wasm-buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-sdkjs-buildcache,mode=max
 
   combine:
     runs-on: self-hosted
@@ -218,16 +196,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Compute safe ref name
+        id: ref
+        run: echo "name=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> $GITHUB_OUTPUT
+
       - name: Extract metadata for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=nightly,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -235,18 +215,18 @@ jobs:
           context: .
           file: ./build/Dockerfile
           target: finalubuntu
-          push: true
+          push: ${{ steps.meta.outputs.tags != '' }}
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
             PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
             BUILD_ROOT=${{ env.BUILD_ROOT }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:core-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sdkjs-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:web-apps-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:server-buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:final-buildcache,mode=max
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-core-buildcache
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-sdkjs-buildcache
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-web-apps-buildcache
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-server-buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-final-buildcache,mode=max
 
   build-develop:
     runs-on: self-hosted
@@ -272,16 +252,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Compute safe ref name
+        id: ref
+        run: echo "name=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> $GITHUB_OUTPUT
+
       - name: Extract metadata for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,prefix={{branch}}-develop-
-            type=raw,value=develop-stage
             type=raw,value=latest-dev,enable={{is_default_branch}}
 
       - name: Build and push Docker image
@@ -290,12 +270,12 @@ jobs:
           context: .
           file: ./build/Dockerfile
           target: develop
-          push: true
+          push: ${{ steps.meta.outputs.tags != '' }}
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
             PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
             BUILD_ROOT=${{ env.BUILD_ROOT }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:final-buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:dev-buildcache,mode=max
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-final-buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-dev-buildcache,mode=max
