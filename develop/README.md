@@ -106,15 +106,16 @@ THEME=euro-office make web-apps-dev CFLAGS="--skip-imagemin"
 The upstream AGPL license headers include a Section 7(b) clause requiring retention of the original product logo. Per [FSF guidance](https://www.fsf.org/news/fsf-submits-amicus-brief-in-neo4j-v-suhy), downstream recipients may remove this. Run after upstream merges to strip any re-introduced clauses.
 
 ```sh
-# All projects — inside the container
-make strip-logo-clause
-
-# All projects — on the host from the project root
+# Current repo (run from within a project directory)
 ./fork/scripts/strip-logo-clause.sh
 
-# Single project only (useful for per-project PRs)
-make strip-logo-clause DIR=web-apps
+# Specific project
 ./fork/scripts/strip-logo-clause.sh web-apps
+make strip-logo-clause DIR=web-apps
+
+# All projects
+./fork/scripts/strip-logo-clause.sh --all
+make strip-logo-clause DIR=--all
 ```
 
 Supported project names: `web-apps`, `sdkjs`, `core`, `server`, `fork`.
