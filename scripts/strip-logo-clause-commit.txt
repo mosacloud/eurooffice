@@ -1,0 +1,6 @@
+chore(license): strip AGPL Section 7(b) trademark clause from %DIR%
+
+Remove the Section 7(b) additional requirement mandating retention of
+the original product logo, as permitted by FSF guidance.
+
+Ref: https://www.fsf.org/news/fsf-submits-amicus-brief-in-neo4j-v-suhy
