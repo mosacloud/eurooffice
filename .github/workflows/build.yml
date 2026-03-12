@@ -215,7 +215,7 @@ jobs:
           context: .
           file: ./build/Dockerfile
           target: finalubuntu
-          push: true
+          push: ${{ steps.meta.outputs.tags != '' }}
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
             PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
@@ -270,7 +270,7 @@ jobs:
           context: .
           file: ./build/Dockerfile
           target: develop
-          push: true
+          push: ${{ steps.meta.outputs.tags != '' }}
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
             PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
