@@ -165,8 +165,8 @@ jobs:
             PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
             BUILD_ROOT=${{ env.BUILD_ROOT }}
           cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:core-wasm-buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sdkjs-buildcache,mode=max
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-core-wasm-buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-sdkjs-buildcache,mode=max
 
   combine:
     runs-on: self-hosted
@@ -214,11 +214,11 @@ jobs:
             BUILD_ROOT=${{ env.BUILD_ROOT }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:core-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sdkjs-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:web-apps-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:server-buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:final-buildcache,mode=max
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-core-buildcache
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-sdkjs-buildcache
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-web-apps-buildcache
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-server-buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-final-buildcache,mode=max
 
   build-develop:
     runs-on: self-hosted
@@ -265,5 +265,5 @@ jobs:
             BUILD_ROOT=${{ env.BUILD_ROOT }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:final-buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:dev-buildcache,mode=max
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-final-buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-dev-buildcache,mode=max
