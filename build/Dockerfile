@@ -310,6 +310,9 @@ EOF
 
     COPY dictionaries/ /desktopeditors/dictionaries
 
+    RUN echo 'LD_LIBRARY_PATH=$PWD:$LD_LIBRARY_PATH LD_PRELOAD=libcef.so ./DesktopEditors' > /desktopeditors/start_desktop.sh && \
+        chmod +x /desktopeditors/start_desktop.sh
+
 FROM scratch AS desktop-export
     COPY --from=desktop-sdk /desktopeditors /
 
