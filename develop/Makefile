@@ -1,3 +1,6 @@
+PRODUCT_VERSION ?= $(shell cat ../VERSION)
+export PRODUCT_VERSION
+
 local:
 	docker compose up -d && docker compose exec eo bash
 
