@@ -286,6 +286,7 @@ RUN mkdir -p /var/www/onlyoffice/documentserver && \
 COPY build/configs/metrics/config/config.js ${EO_ROOT}/server/Metrics/config/config.js
 COPY build/configs/nginx/conf.d /etc/nginx/conf.d/
 COPY build/configs/nginx/includes /etc/nginx/includes/
+RUN sed -i "s/__PRODUCT_VERSION__/${PRODUCT_VERSION}/g" /etc/nginx/includes/ds-docservice.conf
 
 COPY build/configs/core/DoctRenderer.config ${EO_ROOT}/server/FileConverter/bin/DoctRenderer.config
 
@@ -347,7 +348,6 @@ RUN apt-get update && \
         chmod +x /opt/emsdk/emsdk_env.sh && \
         rm -rf emsdk.tar.gz
 
-    # hardcoded for now. todo: get from whatever is defined in upstream
     ENV PRODUCT_VERSION=${PRODUCT_VERSION}
     ENV EO_DEV=/develop
     ENV THEME=euro-office
