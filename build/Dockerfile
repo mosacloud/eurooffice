@@ -167,15 +167,21 @@ FROM emscripten/emsdk:latest AS core-wasm
     # hash wasm has one dependency in sdkjs which we must copy here (TODO: fix this)
     COPY sdkjs/common/stringserialize.js /sdkjs/common/stringserialize.js
 
-    RUN --mount=type=cache,target=/build-cache-wasm \
+    RUN --mount=type=cache,id=wasm-build-cache,target=/build-cache-wasm \
         --mount=type=bind,source=${NUGET_SOURCE_PATH},target=/nuget-cache,rw <<EOF
         cd /build-cache-wasm
-        /bin/bash -c "emcmake cmake -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT} /core && cmake --build ."
-EOF
+
+        # Only configure if CMakeCache.txt doesn't exist yet
+        if [ ! -f CMakeCache.txt ]; then
+            emcmake cmake -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT} /core
+        fi
+
+        cmake --build . -- -j$(nproc)
+    EOF
 
 
 #### SDKJS ####
-FROM base AS sdkjs
+FROM base AS sdkjs-base
 
     ARG BUILD_ROOT=/package
 
@@ -190,15 +196,22 @@ FROM base AS sdkjs
     ENV BUILD_ROOT=${BUILD_ROOT}
 
     ## Copy core wasm builds
-    #COPY --from=core-wasm ${BUILD_ROOT}/engine/ /app/pdf/src/engine/
-    #COPY --from=core-wasm ${BUILD_ROOT}/zlib/ /app/common/zlib/
-    #COPY --from=core-wasm ${BUILD_ROOT}/hash/ /app/common/hash/
-    #COPY --from=core-wasm ${BUILD_ROOT}/spell/ /app/common/spell/
+    COPY --from=core-wasm ${BUILD_ROOT}/engine/ /app/pdf/src/engine/
+    COPY --from=core-wasm ${BUILD_ROOT}/zlib/ /app/common/zlib/
+    COPY --from=core-wasm ${BUILD_ROOT}/hash/ /app/common/hash/
+    COPY --from=core-wasm ${BUILD_ROOT}/spell/ /app/common/spell/
     COPY --from=core-wasm ${BUILD_ROOT}/libfont/ /app/common/libfont/
 
+
+FROM sdkjs-base AS sdkjs
     ARG TARGETARCH
     RUN cd app/build && \
         CC_PLATFORM=$(if [ "$TARGETARCH" = "arm64" ]; then echo "java"; else echo "native,java"; fi) grunt
+
+FROM sdkjs-base AS sdkjs-desktop
+    ARG TARGETARCH
+    RUN cd app/build && \
+        CC_PLATFORM=$(if [ "$TARGETARCH" = "arm64" ]; then echo "java"; else echo "native,java"; fi) grunt --desktop=true
 
 #### WEB-APPS ####
 FROM base AS web-apps
@@ -234,7 +247,7 @@ FROM base AS desktop-js
         grunt
 
 #### DESKTOP-APPS
-FROM core-base AS desktop-sdk
+FROM core-base AS desktop-builder
 
     RUN apt-get -y update && \
         apt-get -y upgrade && \ 
@@ -287,6 +300,7 @@ FROM core-base AS desktop-sdk
 
     COPY desktop-sdk /desktop-sdk
     COPY desktop-apps /desktop-apps
+    COPY core-fonts /core-fonts
 
     #COPY gcc_64 /qt5
 
@@ -294,27 +308,62 @@ FROM core-base AS desktop-sdk
 
     RUN --mount=type=cache,target=/build-cache-desktop,id=build-cache-desktop-${CACHE_BUST} \
         --mount=type=cache,target=/nuget-cache,id=nuget-cache-${CACHE_BUST} <<EOF
-        rm -r /desktopeditors
+        set -e
         cd /build-cache-desktop
-        cmake -GNinja -DVCPKG_TARGET_TRIPLET=x64-linux-dynamic -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_MANIFEST_MODE=ON -DVCPKG_MANIFEST_DIR="/core" -DEO_CORE_OUTPUT_DIR=/desktopeditors/converter /desktop-apps/win-linux/
+        cmake -GNinja -DVCPKG_TARGET_TRIPLET=x64-linux-dynamic \
+              -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake \
+              -DVCPKG_MANIFEST_MODE=ON \
+              -DVCPKG_MANIFEST_DIR="/core" \
+              -DEO_CORE_OUTPUT_DIR=/desktopeditors/converter \
+              -DEO_CORE_TOOLS_DIR=/desktopeditors/converter \
+              /desktop-apps/win-linux/
+        cmake --build . --target clean
         cmake --build .
         cmake --install .
-        cp -r /nuget-cache /nuget-cache-bak
-        cp -r /build-cache-desktop /build
 EOF
-    COPY --from=sdkjs ${BUILD_ROOT} /desktopeditors/editors/
+    COPY --from=sdkjs-desktop ${BUILD_ROOT} /desktopeditors/editors/
     COPY --from=web-apps ${BUILD_ROOT} /desktopeditors/editors/
 
-    COPY --from=desktop-js /app/converter/* /desktopeditors/converter/
-    COPY --from=desktop-js /app/loginpage/deploy/* /desktopeditors/
+    COPY --from=desktop-js /app/loginpage/deploy/index.html /desktopeditors/index.html
+    COPY --from=desktop-js /app/loginpage/deploy/noconnect.html /desktopeditors/editors/webext/noconnect.html
+
+    COPY web-apps/apps/api/documents/index.html.desktop /desktopeditors/editors/web-apps/apps/api/documents/index.html
+    
+    COPY desktop-apps/common/converter/* /desktopeditors/converter/
+    COPY desktop-apps/common/loginpage/providers /desktopeditors/providers
+    COPY desktop-apps/common/templates /desktopeditors/converter/templates
+    
+    COPY document-templates/new /desktopeditors/converter/empty
 
     COPY dictionaries/ /desktopeditors/dictionaries
+    
+
+    COPY core-fonts/opensans   /desktopeditors/fonts
+    COPY core-fonts/asana      /desktopeditors/fonts/asana
+    COPY core-fonts/caladea    /desktopeditors/fonts/caladea
+    COPY core-fonts/crosextra  /desktopeditors/fonts/crosextra
+    COPY core-fonts/openoffice /desktopeditors/fonts/openoffice
+    COPY core-fonts/ASC.ttf    /desktopeditors/fonts/ASC.ttf
+
+    RUN /desktopeditors/converter/allfontsgen \
+        --use-system=1 \
+        --input=/desktopeditors/fonts \
+        --input=/core-fonts \
+        --allfonts=/desktopeditors/converter/AllFonts.js \
+        --selection=/desktopeditors/converter/font_selection.bin 
+    
+    RUN /desktopeditors/converter/allthemesgen \
+        --converter-dir=/desktopeditors/converter \
+        --src=/desktopeditors/editors/sdkjs/slide/themes \
+        --allfonts=/desktopeditors/converter/AllFonts.js \
+        --output=/desktopeditors/editors/sdkjs/common/Images
+
 
     RUN echo 'LD_LIBRARY_PATH=$PWD:$LD_LIBRARY_PATH LD_PRELOAD=libcef.so ./DesktopEditors' > /desktopeditors/start_desktop.sh && \
         chmod +x /desktopeditors/start_desktop.sh
 
 FROM scratch AS desktop-export
-    COPY --from=desktop-sdk /desktopeditors /
+    COPY --from=desktop-builder /desktopeditors /
 
 #### SERVER ####
 FROM base AS server
