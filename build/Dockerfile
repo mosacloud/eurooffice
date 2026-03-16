@@ -331,6 +331,8 @@ FROM core-base AS desktop-builder
     COPY desktop-apps/common/converter/* /desktopeditors/converter/
     COPY desktop-apps/common/loginpage/providers /desktopeditors/providers
     COPY desktop-apps/common/templates /desktopeditors/converter/templates
+
+    COPY fork/build/configs/core/DoctRenderer.config.desktop /desktopeditors/converter/DoctRenderer.config
     
     COPY document-templates/new /desktopeditors/converter/empty
 
@@ -358,7 +360,10 @@ FROM core-base AS desktop-builder
         --output=/desktopeditors/editors/sdkjs/common/Images
 
 
-    RUN echo 'LD_LIBRARY_PATH=$PWD:$LD_LIBRARY_PATH LD_PRELOAD=libcef.so ./DesktopEditors' > /desktopeditors/start_desktop.sh && \
+    #COPY --from=sdkjs-desktop /app/build/maps /desktopeditors/editors/maps
+
+
+    RUN echo 'LD_LIBRARY_PATH=$PWD:$PWD/converter:$LD_LIBRARY_PATH LD_PRELOAD=libcef.so ./DesktopEditors' > /desktopeditors/start_desktop.sh && \
         chmod +x /desktopeditors/start_desktop.sh
 
 FROM scratch AS desktop-export
@@ -522,7 +527,7 @@ FROM ubuntu:24.04 AS finalubuntu
 
 
     ## Copy some binaries for testing (should be removed/self-compiled in the end)
-    COPY fork/build/configs/core/DoctRenderer.config ${EO_ROOT}/server/FileConverter/bin/DoctRenderer.config
+    COPY fork/build/configs/core/DoctRenderer.config.server ${EO_ROOT}/server/FileConverter/bin/DoctRenderer.config
 
     ## Copy scripts
     COPY fork/build/scripts/documentserver-flush-cache.sh /usr/bin/documentserver-flush-cache.sh
