@@ -177,7 +177,7 @@ FROM emscripten/emsdk:latest AS core-wasm
         fi
 
         cmake --build . -- -j$(nproc)
-    EOF
+EOF
 
 
 #### SDKJS ####
@@ -307,20 +307,19 @@ FROM core-base AS desktop-builder
     ARG CACHE_BUST=1
 
     RUN --mount=type=cache,target=/build-cache-desktop,id=build-cache-desktop-${CACHE_BUST} \
-        --mount=type=cache,target=/nuget-cache,id=nuget-cache-${CACHE_BUST} <<EOF
-        set -e
-        cd /build-cache-desktop
+        --mount=type=cache,target=/nuget-cache,id=nuget-cache-${CACHE_BUST} \
+        cd /build-cache-desktop && \
         cmake -GNinja -DVCPKG_TARGET_TRIPLET=x64-linux-dynamic \
               -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake \
               -DVCPKG_MANIFEST_MODE=ON \
               -DVCPKG_MANIFEST_DIR="/core" \
               -DEO_CORE_OUTPUT_DIR=/desktopeditors/converter \
               -DEO_CORE_TOOLS_DIR=/desktopeditors/converter \
-              /desktop-apps/win-linux/
-        cmake --build . --target clean
-        cmake --build .
+              /desktop-apps/win-linux/ && \
+        cmake --build . --target clean  && \
+        cmake --build . && \
         cmake --install .
-EOF
+    
     COPY --from=sdkjs-desktop ${BUILD_ROOT} /desktopeditors/editors/
     COPY --from=web-apps ${BUILD_ROOT} /desktopeditors/editors/
 
