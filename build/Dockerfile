@@ -171,12 +171,13 @@ FROM emscripten/emsdk:latest AS core-wasm
         --mount=type=bind,source=${NUGET_SOURCE_PATH},target=/nuget-cache,rw <<EOF
         cd /build-cache-wasm
 
-        # Only configure if CMakeCache.txt doesn't exist yet
-        if [ ! -f CMakeCache.txt ]; then
-            emcmake cmake -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT} /core
-        fi
+        # Configure to output INSIDE the cache mount (e.g., a 'dist' folder)
+        emcmake cmake -DEO_CORE_OUTPUT_DIR=/build-cache-wasm/dist /core
 
         cmake --build . -- -j$(nproc)
+        
+        # Copy the freshly built (or cached) artifacts into the actual Docker image layer
+        cp -a /build-cache-wasm/dist/. ${BUILD_ROOT}/
 EOF
 
 
