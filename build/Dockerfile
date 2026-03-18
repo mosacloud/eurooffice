@@ -303,6 +303,7 @@ FROM core-base AS desktop-builder
     COPY desktop-apps /desktop-apps
     COPY core-fonts /core-fonts
 
+    COPY --from=desktop-js /app/loginpage/deploy /desktop-apps/common/loginpage/deploy
     #COPY gcc_64 /qt5
 
     ARG CACHE_BUST=1
