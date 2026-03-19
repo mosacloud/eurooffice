@@ -326,9 +326,9 @@ jobs:
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-server-buildcache
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-final-buildcache
 
-      - name: Upload packages as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: packages-${{ github.sha }}
-          path: packages-output/
-          retention-days: 30
+      #- name: Upload packages as artifact
+      #  uses: actions/upload-artifact@v4
+      #  with:
+      #    name: packages-${{ github.sha }}
+      #    path: packages-output/
+      #    retention-days: 30
