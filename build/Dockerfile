@@ -190,8 +190,9 @@ RUN cd /server/AdminPanel/client && npm run build
 #### DOCUMENTSERVER-EXAMPLE ####
 FROM base AS build-example
 ARG TARGETARCH
-COPY document-server-integration/web/documentserver-example/nodejs/package*.json /app/build/
-RUN --mount=type=cache,target=/root/.npm cd /app/build && npm install
+
+COPY document-server-integration/web/documentserver-example/nodejs/package*.json /app/
+RUN --mount=type=cache,target=/root/.npm cd /app && npm install
 COPY document-server-integration/web/documentserver-example/nodejs /app
 WORKDIR /app
 RUN TARGETARCH_PKG=$(echo "$TARGETARCH" | sed 's/amd64/x64/') && \
