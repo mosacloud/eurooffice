@@ -33,13 +33,15 @@ apt-get install -y --no-install-recommends \
 systemctl enable --now postgresql
 sleep 2
 
-sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='onlyoffice'" \
+# The package's debconf defaults use 'ds' for db-user, db-pwd, and db-name
+# (M4_ONLYOFFICE_VALUE=ds). Create matching credentials.
+sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='ds'" \
   | grep -q 1 || \
-  sudo -u postgres psql -c "CREATE USER onlyoffice WITH PASSWORD 'onlyoffice';"
+  sudo -u postgres psql -c "CREATE USER ds WITH PASSWORD 'ds';"
 
-sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='onlyoffice'" \
+sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='ds'" \
   | grep -q 1 || \
-  sudo -u postgres psql -c "CREATE DATABASE onlyoffice OWNER onlyoffice;"
+  sudo -u postgres psql -c "CREATE DATABASE ds OWNER ds;"
 
 # ---------------------------------------------------------------------------
 # 3. Start Redis and RabbitMQ
@@ -48,10 +50,21 @@ systemctl enable --now redis-server
 systemctl enable --now rabbitmq-server
 
 # ---------------------------------------------------------------------------
-# 4. Pre-accept mscorefonts EULA and install the .deb
+# 4. Pre-seed debconf and install the .deb
 # ---------------------------------------------------------------------------
 echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" \
   | debconf-set-selections
+
+# Pre-answer debconf questions so postinst doesn't prompt and uses the
+# PostgreSQL credentials created above.
+cat <<EOF | debconf-set-selections
+ds ds/db-type select postgres
+ds ds/db-host string localhost
+ds ds/db-port string 5432
+ds ds/db-user string ds
+ds ds/db-pwd  password ds
+ds ds/db-name string ds
+EOF
 
 apt-get install -y --fix-broken "$DEB"
 

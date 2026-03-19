@@ -280,6 +280,20 @@ COPY --from=example /example/example /var/www/onlyoffice/documentserver-example/
 RUN mkdir -p /var/www/onlyoffice/documentserver-example/files
 COPY --from=example /example/config/* /etc/onlyoffice/documentserver-example/
 
+COPY document-server-package/common/documentserver-example/welcome /var/www/onlyoffice/documentserver-example/welcome
+RUN YEAR=$(date +"%Y") && \
+    sed -i "s|{{OFFICIAL_PRODUCT_NAME}}|Community Edition|g" /var/www/onlyoffice/documentserver-example/welcome/*.html && \
+    find /var/www/onlyoffice/documentserver-example/welcome -depth -type f \
+         -exec sed -i "s_{{year}}_${YEAR}_g" {} \; && \
+    sed -i "s|{{EXAMPLE_DISABLED_COMMANDS}}|sudo systemctl start ds-example|g" \
+           /var/www/onlyoffice/documentserver-example/welcome/example-disabled.html && \
+    rm -f /var/www/onlyoffice/documentserver-example/welcome/admin-disabled.html && \
+    sed -i '/<!-- BEGIN ADMIN PANEL SECTION -->/,/<!-- END ADMIN PANEL SECTION -->/d' \
+           /var/www/onlyoffice/documentserver-example/welcome/docker.html \
+           /var/www/onlyoffice/documentserver-example/welcome/linux.html \
+           /var/www/onlyoffice/documentserver-example/welcome/linux-rpm.html \
+           /var/www/onlyoffice/documentserver-example/welcome/win.html
+
 # --- Final setup ---
 RUN mkdir -p ${EO_ROOT}/server/Common/config && \
     echo '{}' > ${EO_ROOT}/server/Common/config/runtime.json
