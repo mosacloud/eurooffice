@@ -242,10 +242,10 @@ COPY document-templates ${EO_ROOT}/document-templates
 COPY core-fonts ${EO_ROOT}/core-fonts
 
 # --- Config files and scripts (rarely change) ---
-COPY build/configs/onlyoffice/default.json            ${EO_CONF}/default.json
-COPY build/configs/onlyoffice/development-linux.json  ${EO_CONF}/development-linux.json
-COPY build/configs/onlyoffice/local.json              ${EO_CONF}/local.json
-COPY build/configs/onlyoffice/log4js/development.json ${EO_CONF}/log4js/development.json
+COPY server/Common/config/default.json            ${EO_CONF}/default.json
+COPY server/Common/config/development-linux.json  ${EO_CONF}/development-linux.json
+COPY build/configs/onlyoffice/local.json          ${EO_CONF}/local.json
+COPY server/Common/config/log4js/development.json ${EO_CONF}/log4js/development.json
 
 RUN mkdir -p /var/www/onlyoffice/documentserver && \
     cp ${EO_CONF}/log4js/development.json /var/www/onlyoffice/documentserver/log4js.json
