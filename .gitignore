@@ -1,0 +1,4 @@
+.vscode/
+build/vagrant/.vagrant
+build/deploy
+develop/richdocuments
