@@ -1,3 +1,5 @@
+ARG PACKAGE_BASE=finalubuntu
+
 #### BASE ####
 FROM ubuntu:24.04 AS base
     RUN apt-get update && \
@@ -308,9 +310,9 @@ ENTRYPOINT ["/entrypoint.sh"]
 
 
 #### PACKAGE ####
-# Extends finalubuntu; installs packaging tools, then runs build-packages.sh
+# Extends finalubuntu (or a pre-built image via PACKAGE_BASE); installs packaging tools, then runs build-packages.sh
 # to populate /build/package/out/ and invoke the upstream Makefile.
-FROM finalubuntu AS package
+FROM ${PACKAGE_BASE} AS package
 ARG PRODUCT_VERSION
 ARG BUILD_NUMBER=0
 

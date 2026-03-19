@@ -53,3 +53,70 @@ pruning the docker build cache might help:
 ```sh
 docker builder prune -a
 ```
+
+## Building packages
+
+Packages are built inside Docker using a multi-stage build. The `packages` stage
+extends the `finalubuntu` image (or a custom base via `PACKAGE_BASE`), then runs
+`build/scripts/build-packages.sh` which invokes the upstream `document-server-package`
+Makefile to produce `.deb` and `.rpm` packages.
+
+The version is read from the `VERSION` file at the repo root. An optional
+`BUILD_NUMBER` (defaults to `0`) is appended to the package version string (e.g.
+`9.2.1-0`).
+
+### Basic build
+
+```sh
+cd fork/build
+make packages
+```
+
+Packages are written to `build/deploy/packages/`.
+
+### Custom version or build number
+
+```sh
+make packages PRODUCT_VERSION=9.2.1 BUILD_NUMBER=42
+```
+
+### Build from a pre-built base image
+
+By default the `packages` stage rebuilds on top of `finalubuntu`. If you have
+already built and tagged the final image locally you can skip rebuilding it:
+
+```sh
+make packages PACKAGE_BASE=euro-office/documentserver:latest
+```
+
+### Build only deb or only rpm
+
+The `deb` and `rpm` make targets are aliases for `packages` and accept the same
+variables:
+
+```sh
+make deb
+make rpm
+```
+
+### Testing packages with Vagrant
+
+Vagrant VMs are available to install and smoke-test the produced packages on real
+OS environments. The packages in `deploy/packages/` are automatically shared into
+each VM.
+
+```sh
+# Bring up all VMs (Ubuntu 24.04, Debian 12, Rocky Linux 9)
+make vagrant-up
+
+# Or bring up a single VM
+make vagrant-up-ubuntu
+make vagrant-up-debian
+make vagrant-up-rocky
+
+# SSH into a VM
+make vagrant-ssh VM=ubuntu2404
+
+# Destroy all VMs
+make vagrant-destroy
+```
