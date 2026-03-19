@@ -20,8 +20,8 @@ BUILD_NUMBER="${BUILD_NUMBER:-0}"
 # The upstream Makefile is invoked from /document-server-package/.
 # BUILD_OUTPUT_DIR=../build/package/out  →  /build/package/out/ (absolute)
 OUT_BASE="/build/package/out"
-OUT_DIR="${OUT_BASE}/${TARGET}/onlyoffice/documentserver"
-EXAMPLE_OUT="${OUT_BASE}/${TARGET}/onlyoffice/documentserver-example"
+OUT_DIR="${OUT_BASE}/${TARGET}/euro-office/documentserver"
+EXAMPLE_OUT="${OUT_BASE}/${TARGET}/euro-office/documentserver-example"
 
 echo "==> [build-packages] TARGET=${TARGET}"
 echo "==> [build-packages] PRODUCT_VERSION=${PRODUCT_VERSION}, BUILD_NUMBER=${BUILD_NUMBER}"
