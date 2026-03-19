@@ -86,6 +86,8 @@ done
 # Restart nginx to pick up the document server config
 systemctl restart nginx || true
 
+systemctl start ds-example || true
+
 # ---------------------------------------------------------------------------
 # 6. Print status
 # ---------------------------------------------------------------------------

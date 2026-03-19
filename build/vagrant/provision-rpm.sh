@@ -98,6 +98,7 @@ done
 setsebool -P httpd_can_network_connect on 2>/dev/null || true
 systemctl enable --now nginx
 systemctl restart nginx || true
+systemctl start ds-example || true
 
 # ---------------------------------------------------------------------------
 # 7. Print status
