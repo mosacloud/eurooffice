@@ -186,6 +186,8 @@ FROM base AS sdkjs-base
 
     ARG BUILD_ROOT=/package
 
+    ARG PRODUCT_VERSION
+
     COPY sdkjs/build/package*.json /app/build/
 
     RUN --mount=type=cache,target=/root/.npm \
@@ -193,8 +195,11 @@ FROM base AS sdkjs-base
         npm install
 
     COPY sdkjs/ /app
+    COPY sdkjs-forms/ /sdkjs-forms
 
     ENV BUILD_ROOT=${BUILD_ROOT}
+
+    ENV PRODUCT_VERSION=${PRODUCT_VERSION}
 
     ## Copy core wasm builds
     COPY --from=core-wasm ${BUILD_ROOT}/engine/ /app/pdf/src/engine/
@@ -212,7 +217,7 @@ FROM sdkjs-base AS sdkjs
 FROM sdkjs-base AS sdkjs-desktop
     ARG TARGETARCH
     RUN cd app/build && \
-        CC_PLATFORM=$(if [ "$TARGETARCH" = "arm64" ]; then echo "java"; else echo "native,java"; fi) grunt --desktop=true
+        CC_PLATFORM=$(if [ "$TARGETARCH" = "arm64" ]; then echo "java"; else echo "native,java"; fi) grunt --desktop=true --addon=sdkjs-forms
 
 #### WEB-APPS ####
 FROM base AS web-apps
@@ -307,6 +312,10 @@ FROM core-base AS desktop-builder
     #COPY gcc_64 /qt5
 
     ARG CACHE_BUST=1
+
+    ARG PRODUCT_VERSION
+
+    ENV PRODUCT_VERSION=${PRODUCT_VERSION}
 
     RUN --mount=type=cache,target=/build-cache-desktop,id=build-cache-desktop-${CACHE_BUST} \
         --mount=type=cache,target=/nuget-cache,id=nuget-cache-${CACHE_BUST} \
