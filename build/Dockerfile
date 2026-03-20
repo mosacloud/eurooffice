@@ -10,27 +10,40 @@ FROM ubuntu:24.04 AS base
         rm -rf /var/lib/apt/lists/*
 
 #### CORE ####
-FROM ubuntu:24.04 AS core
+# Build on Ubuntu 22.04 (Jammy, glibc 2.35) so the output binaries never
+# reference glibc symbols newer than 2.35.  This covers Debian 12 (glibc 2.36)
+# and Rocky Linux 9 (glibc 2.34 — glibc 2.35 symbols are avoided in practice
+# as the code does not call any functions first introduced in 2.35).
+# libstdc++ and libgcc are statically linked via -static-libstdc++ -static-libgcc
+# (see common.cmake) so the GLIBCXX version on the target system is irrelevant.
+# glibc itself cannot be statically linked into shared libraries, hence the
+# old Ubuntu base remains necessary.
+FROM ubuntu:22.04 AS core
 ARG BUILD_ROOT=/package
 ARG TARGETARCH
 
 ENV TZ=Etc/UTC
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PLEASE_PRELOAD_LIBSTDCPP=true
 
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
+    echo "deb http://archive.ubuntu.com/ubuntu jammy universe" >> /etc/apt/sources.list && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y software-properties-common && \
+    add-apt-repository -y ppa:deadsnakes/ppa && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         git curl sudo wget ssh \
         build-essential make cmake ninja-build pkg-config \
         libglib2.0-dev \
-        python3 python-is-python3 python3-venv python3-setuptools \
-        python3-httplib2 \
+        python3.11 python3.11-venv python3.11-distutils \
+        python3-setuptools python3-httplib2 \
         lsb-release libboost-all-dev findutils \
         gn \
+    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 \
+    && update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
     && rm -rf /var/lib/apt/lists/*
 
-# clang-13 required for V8 9.x — only available on jammy (22.04), not noble (24.04)
+# clang-13 required for V8 9.x; available natively via the llvm-toolchain-jammy-13 repo
 RUN wget -qO - https://apt.llvm.org/llvm-snapshot.gpg.key | \
     gpg --dearmor -o /etc/apt/keyrings/llvm-snapshot.gpg && \
     echo "deb [signed-by=/etc/apt/keyrings/llvm-snapshot.gpg] http://apt.llvm.org/jammy/ llvm-toolchain-jammy-13 main" \
@@ -61,7 +74,7 @@ COPY core /core
 ENV BUILD_ROOT=${BUILD_ROOT}
 
 RUN --mount=type=cache,target=/build-cache \
-    --mount=type=cache,target=/package/third_party/install \
+    --mount=type=cache,target=/build-cache/third_party/install \
 <<EOF
 set -e
 mkdir -p ${BUILD_ROOT}
@@ -71,11 +84,31 @@ cmake -GNinja \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_CXX_FLAGS_RELEASE="-O3 -w" \
   -DCMAKE_C_FLAGS_RELEASE="-O3 -w" \
-  -DEO_CORE_OUTPUT_DIR=${BUILD_ROOT}/bin \
-  -DEO_CORE_TOOLS_DIR=${BUILD_ROOT}/tools \
+  -DEO_CORE_OUTPUT_DIR=/build-cache/out/bin \
+  -DEO_CORE_TOOLS_DIR=/build-cache/out/tools \
   /core
 
 cmake --build .
+
+# Bundle libboost_regex alongside the binaries so every target distro finds it
+# via $ORIGIN rpath (same approach as ICU).  Resolve symlink with -L so we get
+# the real shared object, not a dangling link.
+ARCH=$(uname -m)
+cp -L /usr/lib/${ARCH}-linux-gnu/libboost_regex.so.1.74.0 /build-cache/out/bin/
+
+# libboost_regex.so.1.74.0 was compiled on Ubuntu 22.04 against ICU 70 and
+# carries DT_NEEDED entries for libicui18n.so.70, libicuuc.so.70, and
+# libicudata.so.70.  Ubuntu 24.04 ships only ICU 74, so those libs must be
+# bundled explicitly.  ICU encodes the major version in every exported symbol
+# name (ucnv_open_70 vs ucnv_open_74), so ICU 70 and ICU 74 coexist safely in
+# the same process without symbol conflicts.
+cp -L /usr/lib/${ARCH}-linux-gnu/libicui18n.so.70 /build-cache/out/bin/
+cp -L /usr/lib/${ARCH}-linux-gnu/libicuuc.so.70   /build-cache/out/bin/
+cp -L /usr/lib/${ARCH}-linux-gnu/libicudata.so.70 /build-cache/out/bin/
+
+# Copy outputs into the image layer; /build-cache is a cache mount and
+# will NOT be part of the final image.
+cp -a /build-cache/out/. ${BUILD_ROOT}/
 EOF
 
 
