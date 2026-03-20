@@ -246,9 +246,9 @@ FROM base AS web-apps
 #### DESKTOP-APPS JAVASCRIPT ####
 FROM base AS desktop-js
 
-    COPY desktop-apps/common app
+    COPY desktop-apps/common /app
 
-    RUN cd app/loginpage/build && \
+    RUN cd /app/loginpage/build && \
         npm install && \
         grunt
 
@@ -371,6 +371,7 @@ FROM core-base AS desktop-builder
 
     #COPY --from=sdkjs-desktop /app/build/maps /desktopeditors/editors/maps
 
+    COPY ../../git_hashes.txt /desktopeditors/git_hashes.txt
 
     RUN echo 'LD_LIBRARY_PATH=$PWD:$PWD/converter:$LD_LIBRARY_PATH LD_PRELOAD=libcef.so ./DesktopEditors' > /desktopeditors/start_desktop.sh && \
         chmod +x /desktopeditors/start_desktop.sh
