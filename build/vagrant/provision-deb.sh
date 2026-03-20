@@ -22,6 +22,17 @@ echo "========================================================"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 
+# On Debian (not Ubuntu) the ttf-mscorefonts-installer package lives in the
+# 'contrib' component, which is not enabled by default.
+if [ "$(. /etc/os-release && echo "$ID")" = "debian" ]; then
+  if ! grep -qE "^deb .* contrib" /etc/apt/sources.list 2>/dev/null; then
+    # Insert 'contrib' after 'main' on every deb line (works regardless of
+    # whether non-free-firmware or other components follow main).
+    sed -i '/^deb / { /contrib/! s/\bmain\b/main contrib/ }' /etc/apt/sources.list
+    apt-get update -qq
+  fi
+fi
+
 apt-get install -y --no-install-recommends \
   postgresql redis-server rabbitmq-server \
   nginx supervisor \
@@ -66,6 +77,12 @@ ds ds/db-pwd  password ds
 ds ds/db-name string ds
 EOF
 
+# Remove previous installation so this acts as a clean reinstall
+PKG_NAME=$(dpkg-deb -f "$DEB" Package)
+if dpkg -l "$PKG_NAME" 2>/dev/null | grep -q "^ii"; then
+  echo "Package ${PKG_NAME} already installed — removing before reinstall."
+  apt-get remove --purge -y "$PKG_NAME" || true
+fi
 apt-get install -y --fix-broken "$DEB"
 
 # ---------------------------------------------------------------------------

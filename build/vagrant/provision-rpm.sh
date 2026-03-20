@@ -28,6 +28,20 @@ dnf config-manager --set-enabled crb || true
 # ---------------------------------------------------------------------------
 # 2. Install prerequisites
 # ---------------------------------------------------------------------------
+# rabbitmq-server was dropped from EPEL for EL 9 — add the official repo.
+if ! dnf repolist enabled | grep -q rabbitmq; then
+  cat > /etc/yum.repos.d/rabbitmq-server.repo <<'REPO'
+[rabbitmq-server]
+name=rabbitmq-server
+baseurl=https://packagecloud.io/rabbitmq/rabbitmq-server/el/9/$basearch
+gpgcheck=0
+enabled=1
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+metadata_expire=300
+REPO
+fi
+
 dnf install -y \
   postgresql-server postgresql \
   redis rabbitmq-server \
@@ -72,6 +86,13 @@ systemctl enable --now rabbitmq-server
 # ---------------------------------------------------------------------------
 # 5. Install the .rpm package
 # ---------------------------------------------------------------------------
+# Remove previous installation so this acts as a clean reinstall
+PKG_NAME=$(rpm -qp --queryformat '%{NAME}' "$RPM" 2>/dev/null)
+if rpm -q "$PKG_NAME" &>/dev/null; then
+  echo "Package ${PKG_NAME} already installed — removing before reinstall."
+  dnf remove -y "$PKG_NAME" || true
+fi
+
 # Use dnf to resolve as many dependencies as possible from repos.
 # --nogpgcheck since the package is locally built and unsigned.
 dnf install -y --nogpgcheck "$RPM" || {
