@@ -24,3 +24,6 @@
 	path = document-templates
 	url = git@github.com:Euro-Office/document-templates.git
 	branch = master
+[submodule "document-server-package"]
+	path = document-server-package
+	url = git@github.com:Euro-Office/document-server-package.git

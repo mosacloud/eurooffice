@@ -1,0 +1,35 @@
+# Git metadata — the main .git dir is 3.4GB and changes on every fetch/commit
+.git
+**/.git
+
+# macOS metadata — Finder updates these unpredictably
+.DS_Store
+**/.DS_Store
+
+# IDE / editor files
+.vscode
+.idea
+**/*.swp
+**/*.swo
+**/*~
+
+# Build artifacts and caches
+**/node_modules
+**/__pycache__
+**/*.pyc
+
+# Repo documentation / CI files not needed in build
+.github
+.gitmodules
+.env
+README.md
+BINARY_FILES_AUDIT.md
+COMMIT_SUMMARY.md
+previous_work
+
+# Core build artifacts (the container builds from source)
+core/job-logs.txt
+
+# Build outputs that shouldn't leak into context
+build/deploy
+build/packages

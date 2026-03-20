@@ -1,0 +1,68 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+#
+# Vagrant multi-machine setup for testing Euro-Office Document Server
+# .deb and .rpm packages on real VMs.
+#
+# Prerequisites:
+#   - Vagrant >= 2.3
+#   - vagrant-libvirt plugin:  vagrant plugin install vagrant-libvirt
+#   - Built packages in ../deploy/packages/ (run `make packages` first)
+#
+# Usage:
+#   vagrant up                  # bring up all VMs
+#   vagrant up ubuntu2404       # bring up only Ubuntu 24.04
+#   vagrant ssh ubuntu2404      # SSH into Ubuntu 24.04
+#   vagrant destroy -f          # tear down all VMs
+
+PACKAGES_DIR = File.expand_path("../deploy/packages", __dir__)
+
+unless Dir.exist?(PACKAGES_DIR)
+  warn "WARNING: #{PACKAGES_DIR} does not exist. Run 'make packages' first."
+end
+
+Vagrant.configure("2") do |config|
+  # Shared libvirt provider defaults
+  config.vm.provider :libvirt do |libvirt|
+    libvirt.cpus   = 2
+    libvirt.memory = 4096
+    # Avoid ip6tables errors on hosts without the ip6t_REJECT kernel module
+    libvirt.management_network_guest_ipv6 = "no"
+  end
+
+  # Disable default synced folder (not needed, and NFS/rsync can be flaky)
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+
+  # Sync the built packages into each VM
+  config.vm.synced_folder PACKAGES_DIR, "/pkgs", type: "rsync"
+
+  # --------------------------------------------------------------------------
+  # Ubuntu 24.04 — .deb testing
+  # --------------------------------------------------------------------------
+  config.vm.define "ubuntu2404", autostart: true do |vm|
+    vm.vm.box = "cloud-image/ubuntu-24.04"
+    vm.vm.hostname = "ds-ubuntu2404"
+    vm.vm.network :forwarded_port, guest: 80, host: 8900
+    vm.vm.provision "shell", path: "provision-deb.sh"
+  end
+
+  # --------------------------------------------------------------------------
+  # Debian 12 — .deb testing
+  # --------------------------------------------------------------------------
+  config.vm.define "debian12", autostart: true do |vm|
+    vm.vm.box = "generic/debian12"
+    vm.vm.hostname = "ds-debian12"
+    vm.vm.network :forwarded_port, guest: 80, host: 8901
+    vm.vm.provision "shell", path: "provision-deb.sh"
+  end
+
+  # --------------------------------------------------------------------------
+  # Rocky Linux 9 — .rpm testing
+  # --------------------------------------------------------------------------
+  config.vm.define "rocky9", autostart: true do |vm|
+    vm.vm.box = "generic/rocky9"
+    vm.vm.hostname = "ds-rocky9"
+    vm.vm.network :forwarded_port, guest: 80, host: 8902
+    vm.vm.provision "shell", path: "provision-rpm.sh"
+  end
+end

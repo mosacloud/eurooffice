@@ -10,6 +10,7 @@ FROM ubuntu:24.04 AS base
 #### CORE ####
 FROM ubuntu:24.04 AS core
 ARG BUILD_ROOT=/package
+ARG TARGETARCH
 
 ENV TZ=Etc/UTC
 ENV DEBIAN_FRONTEND=noninteractive
@@ -189,8 +190,9 @@ RUN cd /server/AdminPanel/client && npm run build
 #### DOCUMENTSERVER-EXAMPLE ####
 FROM base AS build-example
 ARG TARGETARCH
-COPY document-server-integration/web/documentserver-example/nodejs/package*.json /app/build/
-RUN --mount=type=cache,target=/root/.npm cd /app/build && npm install
+
+COPY document-server-integration/web/documentserver-example/nodejs/package*.json /app/
+RUN --mount=type=cache,target=/root/.npm cd /app && npm install
 COPY document-server-integration/web/documentserver-example/nodejs /app
 WORKDIR /app
 RUN TARGETARCH_PKG=$(echo "$TARGETARCH" | sed 's/amd64/x64/') && \
@@ -228,53 +230,19 @@ RUN service postgresql start && \
     sudo -u postgres psql -c "CREATE DATABASE onlyoffice OWNER onlyoffice;" && \
     sudo -u postgres bash -c "PGPASSWORD=onlyoffice psql -h localhost -U onlyoffice -d onlyoffice -f ${EO_ROOT}/server/schema/postgresql/createdb.sql"
 
-## Copy dictionary
-COPY dictionaries /var/www/onlyoffice/documentserver/dictionaries
-COPY document-templates /var/www/onlyoffice/documentserver/document-templates
-
 RUN rm -f /etc/nginx/sites-enabled/default && \
     mkdir -p ${EO_LOG}/docservice ${EO_LOG}/converter \
              ${EO_LOG}/adminpanel ${EO_LOG}/metrics \
-             ${EO_ROOT}/sdkjs-plugins ${EO_ROOT}/fonts && \
+             ${EO_ROOT}/sdkjs-plugins ${EO_ROOT}/fonts \
+             ${EO_ROOT}/server/FileConverter/lib ${EO_ROOT}/server/tools && \
     touch ${EO_LOG}/nginx.error.log
 
-COPY --from=sdkjs ${BUILD_ROOT} ${EO_ROOT}/
-COPY --from=web-apps ${BUILD_ROOT} ${EO_ROOT}/
-
-# Copy all core binaries and tools (including libgraphics.so for shared libraries)
-COPY --from=core ${BUILD_ROOT}/bin/ ${EO_ROOT}/server/FileConverter/bin/
-COPY --from=core ${BUILD_ROOT}/tools/ ${EO_ROOT}/server/tools/
-
-# Copy ICU libraries from the package root in core stage
-RUN mkdir -p ${EO_ROOT}/server/FileConverter/lib ${EO_ROOT}/server/tools
-COPY --from=core ${BUILD_ROOT}/*.so* ${EO_ROOT}/server/FileConverter/lib/
-COPY --from=core ${BUILD_ROOT}/tools/*.so* ${EO_ROOT}/server/tools/
-
-COPY --from=server ${BUILD_ROOT}/docservice    ${EO_ROOT}/server/DocService/docservice
-COPY --from=server ${BUILD_ROOT}/fileconverter ${EO_ROOT}/server/FileConverter/converter
-COPY --from=server ${BUILD_ROOT}/metrics       ${EO_ROOT}/server/Metrics/metrics
-COPY --from=server ${BUILD_ROOT}/adminpanel    ${EO_ROOT}/server/AdminPanel/server/adminpanel
-COPY --from=server ${BUILD_ROOT}/build         ${EO_ROOT}/server/AdminPanel/client/build
-
+# --- Static content from build context (rarely changes) ---
+COPY dictionaries ${EO_ROOT}/dictionaries
+COPY document-templates ${EO_ROOT}/document-templates
 COPY core-fonts ${EO_ROOT}/core-fonts
 
-# Install example app
-COPY --from=example /example/example /var/www/onlyoffice/documentserver-example/example
-RUN mkdir -p /var/www/onlyoffice/documentserver-example/files
-# Copy patched config file default.json
-COPY --from=example /example/config/* /etc/onlyoffice/documentserver-example/
-
-
-# Create required config directories and files
-RUN mkdir -p ${EO_ROOT}/server/Common/config && \
-    touch ${EO_ROOT}/server/Common/config/runtime.json && \
-    echo '{}' > ${EO_ROOT}/server/Common/config/runtime.json
-
-# Set proper permissions for OnlyOffice directories (fixes EACCES permission denied)
-RUN mkdir -p /var/lib/onlyoffice && \
-    chown -R ds:ds /var/www/onlyoffice /var/lib/onlyoffice /var/log/onlyoffice
-
-# Copy log4js configuration first before trying to use it
+# --- Config files and scripts (rarely change) ---
 COPY build/configs/onlyoffice/default.json            ${EO_CONF}/default.json
 COPY build/configs/onlyoffice/development-linux.json  ${EO_CONF}/development-linux.json
 COPY build/configs/onlyoffice/local.json              ${EO_CONF}/local.json
@@ -289,17 +257,95 @@ COPY build/configs/nginx/includes /etc/nginx/includes/
 RUN sed -i "s/__PRODUCT_VERSION__/${PRODUCT_VERSION}/g" /etc/nginx/includes/ds-docservice.conf
 
 COPY build/configs/core/DoctRenderer.config ${EO_ROOT}/server/FileConverter/bin/DoctRenderer.config
-
+COPY build/configs/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY --chmod=755 build/scripts/documentserver-flush-cache.sh /usr/bin/documentserver-flush-cache.sh
 COPY --chmod=755 build/scripts/documentserver-generate-allfonts.sh /usr/bin/documentserver-generate-allfonts.sh
-COPY build/configs/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY --chmod=755 build/scripts/entrypoint.sh /entrypoint.sh
+
+# --- Build stage outputs (change with code) ---
+COPY --from=sdkjs ${BUILD_ROOT} ${EO_ROOT}/
+COPY --from=web-apps ${BUILD_ROOT} ${EO_ROOT}/
+
+COPY --from=core ${BUILD_ROOT}/bin/ ${EO_ROOT}/server/FileConverter/bin/
+COPY --from=core ${BUILD_ROOT}/tools/ ${EO_ROOT}/server/tools/
+COPY --from=core ${BUILD_ROOT}/*.so* ${EO_ROOT}/server/FileConverter/lib/
+COPY --from=core ${BUILD_ROOT}/tools/*.so* ${EO_ROOT}/server/tools/
+
+COPY --from=server ${BUILD_ROOT}/docservice    ${EO_ROOT}/server/DocService/docservice
+COPY --from=server ${BUILD_ROOT}/fileconverter ${EO_ROOT}/server/FileConverter/converter
+COPY --from=server ${BUILD_ROOT}/metrics       ${EO_ROOT}/server/Metrics/metrics
+COPY --from=server ${BUILD_ROOT}/adminpanel    ${EO_ROOT}/server/AdminPanel/server/adminpanel
+COPY --from=server ${BUILD_ROOT}/build         ${EO_ROOT}/server/AdminPanel/client/build
+
+COPY --from=example /example/example /var/www/onlyoffice/documentserver-example/example
+RUN mkdir -p /var/www/onlyoffice/documentserver-example/files
+COPY --from=example /example/config/* /etc/onlyoffice/documentserver-example/
+
+COPY document-server-package/common/documentserver-example/welcome /var/www/onlyoffice/documentserver-example/welcome
+RUN YEAR=$(date +"%Y") && \
+    sed -i "s|{{OFFICIAL_PRODUCT_NAME}}|Community Edition|g" /var/www/onlyoffice/documentserver-example/welcome/*.html && \
+    find /var/www/onlyoffice/documentserver-example/welcome -depth -type f \
+         -exec sed -i "s_{{year}}_${YEAR}_g" {} \; && \
+    sed -i "s|{{EXAMPLE_DISABLED_COMMANDS}}|sudo systemctl start ds-example|g" \
+           /var/www/onlyoffice/documentserver-example/welcome/example-disabled.html && \
+    rm -f /var/www/onlyoffice/documentserver-example/welcome/admin-disabled.html && \
+    sed -i '/<!-- BEGIN ADMIN PANEL SECTION -->/,/<!-- END ADMIN PANEL SECTION -->/d' \
+           /var/www/onlyoffice/documentserver-example/welcome/docker.html \
+           /var/www/onlyoffice/documentserver-example/welcome/linux.html \
+           /var/www/onlyoffice/documentserver-example/welcome/linux-rpm.html \
+           /var/www/onlyoffice/documentserver-example/welcome/win.html
+
+# --- Final setup ---
+RUN mkdir -p ${EO_ROOT}/server/Common/config && \
+    echo '{}' > ${EO_ROOT}/server/Common/config/runtime.json
+
+RUN mkdir -p /var/lib/onlyoffice && \
+    chown -R ds:ds /var/www/onlyoffice /var/lib/onlyoffice /var/log/onlyoffice
 
 RUN /usr/bin/documentserver-flush-cache.sh -r false
 
-COPY build/scripts/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
 ENTRYPOINT ["/entrypoint.sh"]
+
+
+#### PACKAGE ####
+# Extends finalubuntu; installs packaging tools, then runs build-packages.sh
+# to populate /build/package/out/ and invoke the upstream Makefile.
+FROM finalubuntu AS package
+ARG PRODUCT_VERSION
+ARG BUILD_NUMBER=0
+
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        devscripts dpkg-dev build-essential fakeroot debhelper \
+        rpm m4 curl ca-certificates gnupg symlinks && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g @yao-pkg/pkg && \
+    rm -rf /var/lib/apt/lists/*
+
+# Upstream packaging repo
+COPY document-server-package/ /document-server-package/
+
+# Original server source files required by the upstream Makefile's sed transforms
+COPY server/Common/config/ /server-src/Common/config/
+COPY server/schema/        /server-src/schema/
+COPY server/license/       /server-src/license/
+COPY server/LICENSE.txt    /server-src/
+COPY server/3rd-Party.txt  /server-src/
+
+COPY --chmod=755 build/scripts/build-packages.sh /build-packages.sh
+
+ENV PRODUCT_VERSION=${PRODUCT_VERSION}
+ENV BUILD_NUMBER=${BUILD_NUMBER}
+
+RUN /build-packages.sh
+
+
+#### PACKAGES OUTPUT ####
+# Scratch stage so `docker build --target packages -o <dir>` extracts only
+# the finished .deb and .rpm files.
+FROM scratch AS packages
+COPY --from=package /packages/ /
 
 
 FROM finalubuntu AS develop
