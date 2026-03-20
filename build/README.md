@@ -89,16 +89,6 @@ already built and tagged the final image locally you can skip rebuilding it:
 make packages PACKAGE_BASE=euro-office/documentserver:latest
 ```
 
-### Build only deb or only rpm
-
-The `deb` and `rpm` make targets are aliases for `packages` and accept the same
-variables:
-
-```sh
-make deb
-make rpm
-```
-
 ### Testing packages with Vagrant
 
 Vagrant VMs are available to install and smoke-test the produced packages on real
