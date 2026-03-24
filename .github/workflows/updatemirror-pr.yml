@@ -1,4 +1,4 @@
-name: Pull requests to pull branches from develop branch in the fork branch
+name: Pull requests to pull branches from develop branch in the main branch
 
 on:
   workflow_dispatch:
@@ -34,7 +34,7 @@ jobs:
       with:
         repository: "Euro-Office/${{ steps.repo_name.outputs.repo }}"
         token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
-        ref: fork
+        ref: main
     - name: Merge commits and create PR from ${{ steps.repo_name.outputs.upstream_branch }} branch
       run: |
         git config --global user.name "Euro-Office via GitHub Actions"
@@ -72,7 +72,7 @@ jobs:
         fi
 
         # Build PR body
-        pr_body="This pull request updates the \`fork\` branch with changes from the \`${{ steps.repo_name.outputs.upstream_branch }}\` branch in the upstream repository."
+        pr_body="This pull request updates the \`main\` branch with changes from the \`${{ steps.repo_name.outputs.upstream_branch }}\` branch in the upstream repository."
 
         if [ "$merge_success" = false ]; then
           pr_body="${pr_body}"$'\n\n## ⚠️ Merge Conflicts Detected\n\nThe automatic merge from upstream encountered conflicts in the following files:\n\n'"${conflicted_files}"$'\n\n### Action Required\n\n- [ ] Manually merge the upstream branch to inspect and resolve the conflicts:\n  ```bash\n  git fetch upstream '"${{ steps.repo_name.outputs.upstream_branch }}"$'\n  git checkout update-from-'"${{ steps.repo_name.outputs.upstream_branch }}"$'\n  git merge upstream/'"${{ steps.repo_name.outputs.upstream_branch }}"$'\n  # Resolve conflicts, then:\n  git add .\n  git commit\n  git push origin update-from-'"${{ steps.repo_name.outputs.upstream_branch }}"$'\n  ```'
@@ -103,7 +103,7 @@ jobs:
           gh pr create \
             --repo "Euro-Office/${{ steps.repo_name.outputs.repo }}" \
             --head update-from-${{ steps.repo_name.outputs.upstream_branch }} \
-            --base fork \
+            --base main \
             --title "Update from ${{ steps.repo_name.outputs.upstream_branch }} branch in upstream repository" \
             --body-file "$pr_body_file" || true
         fi

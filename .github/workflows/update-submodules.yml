@@ -1,4 +1,4 @@
-name: Update submodules to latest fork branch
+name: Update submodules to latest main branch
 
 on:
   workflow_dispatch:
@@ -26,17 +26,17 @@ jobs:
           git config user.name  "Euro-Office via GitHub Actions"
           git config user.email "actions@github.com"
 
-      - name: Advance each submodule to latest fork/master commit
+      - name: Advance each submodule to latest main/master commit
         run: |
           set -euo pipefail
 
           # Map of submodule path → branch to track
           declare -A BRANCHES=(
-            [server]="fork"
-            [web-apps]="fork"
-            [sdkjs]="fork"
-            [core]="fork"
-            [core-fonts]="fork"
+            [server]="main"
+            [web-apps]="main"
+            [sdkjs]="main"
+            [core]="main"
+            [core-fonts]="main"
             [document-server-integration]="master"
             [dictionaries]="master"
             [document-templates]="master"
@@ -63,11 +63,11 @@ jobs:
           branch: chore/nightly-submodule-bump
           base: main
           delete-branch: true
-          commit-message: "chore: update submodules to latest fork branch"
-          title: "chore: update submodules to latest fork branch"
+          commit-message: "chore: update submodules to latest main branch"
+          title: "chore: update submodules to latest main branch"
           body: |
             Automated nightly submodule bump.
 
             Updates each submodule to the latest commit on its tracking branch:
-            - `server`, `web-apps`, `sdkjs`, `core`, `core-fonts` → `fork`
+            - `server`, `web-apps`, `sdkjs`, `core`, `core-fonts` → `main`
             - `document-server-integration`, `dictionaries`, `document-templates` → `master`
