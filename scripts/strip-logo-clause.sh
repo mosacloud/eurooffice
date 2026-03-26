@@ -15,16 +15,16 @@
 #
 # Usage:
 #   Strip current repo (run from within a project directory):
-#     ./fork/scripts/strip-logo-clause.sh
+#     ../scripts/strip-logo-clause.sh
 #
 #   Strip a specific project:
-#     ./fork/scripts/strip-logo-clause.sh web-apps
-#     ./fork/scripts/strip-logo-clause.sh sdkjs
-#     ./fork/scripts/strip-logo-clause.sh core
-#     ./fork/scripts/strip-logo-clause.sh server
+#     ./scripts/strip-logo-clause.sh web-apps
+#     ./scripts/strip-logo-clause.sh sdkjs
+#     ./scripts/strip-logo-clause.sh core
+#     ./scripts/strip-logo-clause.sh server
 #
 #   Strip all projects:
-#     ./fork/scripts/strip-logo-clause.sh --all
+#     ./scripts/strip-logo-clause.sh --all
 #
 #   From inside the Docker container (via Makefile):
 #     make strip-logo-clause            (current repo)
@@ -34,7 +34,7 @@
 #   Run after upstream merges to remove any re-introduced clauses.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 PATTERN="Pursuant to Section 7(b)"
 

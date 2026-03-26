@@ -107,14 +107,14 @@ The upstream AGPL license headers include a Section 7(b) clause requiring retent
 
 ```sh
 # Current repo (run from within a project directory)
-./fork/scripts/strip-logo-clause.sh
+../scripts/strip-logo-clause.sh
 
 # Specific project
-./fork/scripts/strip-logo-clause.sh web-apps
+./scripts/strip-logo-clause.sh web-apps
 make strip-logo-clause DIR=web-apps
 
 # All projects
-./fork/scripts/strip-logo-clause.sh --all
+./scripts/strip-logo-clause.sh --all
 make strip-logo-clause DIR=--all
 ```
 

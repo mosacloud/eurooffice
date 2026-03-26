@@ -207,4 +207,4 @@ server/adminp/cli: server/common
 #        make strip-logo-clause DIR=web-apps  (single project)
 #        make strip-logo-clause DIR=--all     (all projects)
 strip-logo-clause:
-	$(EO_DEV)/fork/scripts/strip-logo-clause.sh $(DIR)
+	$(EO_DEV)/scripts/strip-logo-clause.sh $(DIR)
