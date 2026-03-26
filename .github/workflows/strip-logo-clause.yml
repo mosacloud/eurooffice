@@ -53,6 +53,7 @@ jobs:
         with:
           repository: Euro-Office/fork
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+          ref: main
           sparse-checkout: scripts
           path: _templates
 
@@ -99,7 +100,7 @@ jobs:
               -o -name "*.json" -o -name "*.ts" -o -name "*.cpp" -o -name "*.h" \
               -o -name "*.c" \) \
               "${EXCLUDE_PATHS[@]}" \
-              -exec sed -i '/Pursuant to Section 7(b)/,/grant you any rights under trademark law/{N;d;}' {} +
+              -exec sed -i '/Pursuant to Section 7(b)/,/grant you any rights under trademark law/d' {} +
 
       - name: Create branch and commit
         if: steps.check.outputs.count != '0'
@@ -114,8 +115,7 @@ jobs:
             exit 0
           fi
           echo "has_changes=true" >> "$GITHUB_OUTPUT"
-          sed 's/__REPO__/${{ matrix.repo }}/g' ../_templates/scripts/strip-logo-clause-commit.txt > /tmp/commit-msg.txt
-          git commit -F /tmp/commit-msg.txt
+          git commit -F ../_templates/scripts/strip-logo-clause-commit.txt
           git push origin "$BRANCH_NAME"
 
       - name: Create pull request and merge
