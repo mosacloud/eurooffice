@@ -1,4 +1,4 @@
-chore(license): Remove unenforceable and non-obligatory Section 7 additions from %DIR%
+Remove unenforceable and non-obligatory Section 7 additions from copyright headers
 
 Under AGPLv3 Section 7, downstream recipients may remove terms that
 constitute "further restrictions" beyond what Section 7(a)-(f) permits,

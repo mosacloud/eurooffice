@@ -103,25 +103,9 @@ THEME=euro-office make web-apps-dev CFLAGS="--skip-imagemin"
 
 #### Strip Section 7(b) trademark clause
 
-The upstream AGPL license headers include a Section 7(b) clause requiring retention of the original product logo. Per [FSF guidance](https://www.fsf.org/news/fsf-submits-amicus-brief-in-neo4j-v-suhy), downstream recipients may remove this. Run after upstream merges to strip any re-introduced clauses.
+After upstream merges, the AGPL Section 7(b) trademark clause may be re-introduced. A GitHub Actions workflow automatically strips it. Run it from **Actions > Strip Section 7(b) trademark clause** and select which project to process (or "all").
 
-The script creates a branch, fetches and merges main, strips the clause, and commits. It then optionally creates a PR and merges it via the `eo-robot` bot account (set `EO_ROBOT_TOKEN` or enter the token when prompted).
-
-```sh
-# Current repo (run from within a project directory)
-../scripts/strip-logo-clause.sh
-
-# Specific project
-./scripts/strip-logo-clause.sh web-apps
-make strip-logo-clause DIR=web-apps
-
-# All projects
-./scripts/strip-logo-clause.sh --all
-make strip-logo-clause DIR=--all
-```
-
-Supported project names: `web-apps`, `sdkjs`, `core`, `server`, `fork`.
-Skips `node_modules/` and `vendor/` directories.
+The commit message and PR body templates live in `scripts/strip-logo-clause-commit.txt` and `scripts/strip-logo-clause-pr-body.txt`.
 
 ### sdkjs
 
