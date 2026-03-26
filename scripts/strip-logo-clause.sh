@@ -178,6 +178,6 @@ for dir in "${DIRS[@]}"; do
     fi
     COMMIT_MSG=$(sed "s/%DIR%/$dir/g" "$TEMPLATE")
     git -C "$REPO" add -A
-    git -C "$REPO" commit -m "$COMMIT_MSG"
+    git -C "$REPO" commit -m "$COMMIT_MSG" --author="Euro-Office Robot <eo-robot@users.noreply.github.com>"
     echo "Committed in $dir."
 done
