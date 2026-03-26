@@ -1,0 +1,146 @@
+name: Strip Section 7(b) trademark clause
+
+on:
+  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Project to strip (or "all")'
+        required: true
+        type: choice
+        options:
+          - all
+          - web-apps
+          - sdkjs
+          - core
+          - server
+          - fork
+
+jobs:
+  prepare:
+    runs-on: self-hosted
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Build matrix
+        id: set-matrix
+        run: |
+          if [ "${{ inputs.project }}" = "all" ]; then
+            echo 'matrix=["web-apps","sdkjs","core","server","fork"]' >> "$GITHUB_OUTPUT"
+          else
+            echo 'matrix=["${{ inputs.project }}"]' >> "$GITHUB_OUTPUT"
+          fi
+
+  strip:
+    needs: prepare
+    runs-on: self-hosted
+    strategy:
+      fail-fast: false
+      matrix:
+        repo: ${{ fromJson(needs.prepare.outputs.matrix) }}
+
+    env:
+      PATTERN: "Pursuant to Section 7(b)"
+      BRANCH_NAME: chore/strip-logo-clause-${{ github.run_id }}
+      GIT_AUTHOR_NAME: Euro-Office Robot
+      GIT_AUTHOR_EMAIL: eo-robot@users.noreply.github.com
+      GIT_COMMITTER_NAME: Euro-Office Robot
+      GIT_COMMITTER_EMAIL: eo-robot@users.noreply.github.com
+
+    steps:
+      - name: Checkout ${{ matrix.repo }}
+        uses: actions/checkout@v4
+        with:
+          repository: Euro-Office/${{ matrix.repo }}
+          token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+          fetch-depth: 0
+
+      - name: Check for clause
+        id: check
+        run: |
+          EXCLUDE_PATHS=(! -path "*/node_modules/*" ! -path "*/vendor/*")
+          # When running on fork, skip submodule directories to avoid double-processing
+          if [ "${{ matrix.repo }}" = "fork" ]; then
+            EXCLUDE_PATHS+=(! -path "*/web-apps/*" ! -path "*/sdkjs/*" ! -path "*/core/*" ! -path "*/server/*")
+          fi
+          count=$(find . -type f \( -name "*.js" -o -name "*.less" -o -name "*.css" \
+              -o -name "*.html" -o -name "*.htm" -o -name "*.py" -o -name "*.sh" \
+              -o -name "*.json" -o -name "*.ts" -o -name "*.cpp" -o -name "*.h" \
+              -o -name "*.c" \) \
+              "${EXCLUDE_PATHS[@]}" \
+              -exec grep -l "$PATTERN" {} + 2>/dev/null | wc -l | tr -d ' ')
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          if [ "$count" -eq 0 ]; then
+            echo "No files contain the clause in ${{ matrix.repo }}. Skipping."
+          else
+            echo "Found $count files with the clause in ${{ matrix.repo }}."
+          fi
+
+      - name: Strip clause
+        if: steps.check.outputs.count != '0'
+        run: |
+          EXCLUDE_PATHS=(! -path "*/node_modules/*" ! -path "*/vendor/*")
+          if [ "${{ matrix.repo }}" = "fork" ]; then
+            EXCLUDE_PATHS+=(! -path "*/web-apps/*" ! -path "*/sdkjs/*" ! -path "*/core/*" ! -path "*/server/*")
+          fi
+          find . -type f \( -name "*.js" -o -name "*.less" -o -name "*.css" \
+              -o -name "*.html" -o -name "*.htm" -o -name "*.py" -o -name "*.sh" \
+              -o -name "*.json" -o -name "*.ts" -o -name "*.cpp" -o -name "*.h" \
+              -o -name "*.c" \) \
+              "${EXCLUDE_PATHS[@]}" \
+              -exec sed -i '/Pursuant to Section 7(b)/,/grant you any rights under trademark law/{N;d;}' {} +
+
+      - name: Create branch and commit
+        if: steps.check.outputs.count != '0'
+        id: commit
+        run: |
+          git checkout -b "$BRANCH_NAME"
+          git add -u
+          if git diff --cached --quiet; then
+            echo "No changes after stripping. Skipping."
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          cat > /tmp/commit-msg.txt <<EOF
+          chore(license): Remove unenforceable and non-obligatory Section 7 additions from ${{ matrix.repo }}
+
+          Under AGPLv3 Section 7, downstream recipients may remove terms that constitute "further restrictions" beyond what Section 7(a)-(f) permits, as affirmed by the FSF.
+
+          Logo retention requirement (Section 7(b)): Section 7(b) permits requiring preservation of "legal notices or author attributions". A product logo is a trademark/brand element, not a legal notice or author attribution. It therefore exceeds the scope of 7(b), qualifies as a "further restriction" under Section 10, and may be removed.
+
+          Trademark disclaimer (Section 7(e)): Purely declaratory — the AGPLv3 does not grant trademark rights in any case. The disclaimer creates no affirmative obligation on the licensee and removing it changes no rights or obligations. There is no legal basis requiring its preservation.
+
+          Contact address: The postal address of Ascensio System SIA is informational only. No provision of the AGPLv3 requires downstream recipients to preserve the original licensor's contact details.
+
+          Appropriate Legal Notices reminder: This paragraph merely restates the obligation already imposed by AGPLv3 Section 5(d). It is not a Section 7 additional term and its removal does not affect compliance obligations, which derive from the license text itself.
+
+          The Section 7(a) warranty exclusion and CC BY-SA 4.0 notice for GUI assets are retained as they are substantive terms that modify licensee rights and obligations.
+          EOF
+          # Strip leading whitespace from YAML indentation
+          sed -i 's/^          //' /tmp/commit-msg.txt
+          git commit -F /tmp/commit-msg.txt
+          git push origin "$BRANCH_NAME"
+
+      - name: Create pull request and merge
+        if: steps.check.outputs.count != '0' && steps.commit.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+        run: |
+          cat > /tmp/pr-body.txt <<EOF
+          Automated removal of unenforceable Section 7(b) trademark clause.
+
+          Stripped ${{ steps.check.outputs.count }} files. See commit message for legal rationale.
+
+          Triggered by: @${{ github.actor }} via workflow_dispatch
+          EOF
+          sed -i 's/^          //' /tmp/pr-body.txt
+          PR_URL=$(gh pr create \
+            --repo "Euro-Office/${{ matrix.repo }}" \
+            --base main \
+            --head "$BRANCH_NAME" \
+            --title "chore(license): Remove non-obligatory Section 7 additions" \
+            --body-file /tmp/pr-body.txt)
+          echo "PR created: $PR_URL"
+          # TODO: uncomment after testing
+          # gh pr merge "$PR_URL" --merge --delete-branch
+          # echo "PR merged and branch deleted."
