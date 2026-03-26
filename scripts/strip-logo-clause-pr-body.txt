@@ -1,0 +1,3 @@
+Automated removal of unenforceable Section 7(b) trademark clause.
+
+Stripped __COUNT__ files. See commit message for legal rationale.

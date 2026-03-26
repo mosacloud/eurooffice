@@ -1,33 +1,13 @@
-chore(license): Remove unenforceable and non-obligatory Section 7 additions from %DIR%
+chore(license): Remove unenforceable and non-obligatory Section 7 additions from __REPO__
 
-Under AGPLv3 Section 7, downstream recipients may remove terms that
-constitute "further restrictions" beyond what Section 7(a)-(f) permits,
-as affirmed by the FSF.
+Under AGPLv3 Section 7, downstream recipients may remove terms that constitute "further restrictions" beyond what Section 7(a)-(f) permits, as affirmed by the FSF.
 
-Logo retention requirement (Section 7(b)):
-Section 7(b) permits requiring preservation of "legal notices or
-author attributions". A product logo is a trademark/brand element,
-not a legal notice or author attribution. It therefore exceeds the
-scope of 7(b), qualifies as a "further restriction" under Section 10,
-and may be removed.
+Logo retention requirement (Section 7(b)): Section 7(b) permits requiring preservation of "legal notices or author attributions". A product logo is a trademark/brand element, not a legal notice or author attribution. It therefore exceeds the scope of 7(b), qualifies as a "further restriction" under Section 10, and may be removed.
 
-Trademark disclaimer (Section 7(e)):
-Purely declaratory — the AGPLv3 does not grant trademark rights in
-any case. The disclaimer creates no affirmative obligation on the
-licensee and removing it changes no rights or obligations. There is
-no legal basis requiring its preservation.
+Trademark disclaimer (Section 7(e)): Purely declaratory — the AGPLv3 does not grant trademark rights in any case. The disclaimer creates no affirmative obligation on the licensee and removing it changes no rights or obligations. There is no legal basis requiring its preservation.
 
-Contact address:
-The postal address of Ascensio System SIA is informational only.
-No provision of the AGPLv3 requires downstream recipients to preserve
-the original licensor's contact details.
+Contact address: The postal address of Ascensio System SIA is informational only. No provision of the AGPLv3 requires downstream recipients to preserve the original licensor's contact details.
 
-Appropriate Legal Notices reminder:
-This paragraph merely restates the obligation already imposed by
-AGPLv3 Section 5(d). It is not a Section 7 additional term and its
-removal does not affect compliance obligations, which derive from
-the license text itself.
+Appropriate Legal Notices reminder: This paragraph merely restates the obligation already imposed by AGPLv3 Section 5(d). It is not a Section 7 additional term and its removal does not affect compliance obligations, which derive from the license text itself.
 
-The Section 7(a) warranty exclusion and CC BY-SA 4.0 notice for GUI
-assets are retained as they are substantive terms that modify licensee
-rights and obligations.
+The Section 7(a) warranty exclusion and CC BY-SA 4.0 notice for GUI assets are retained as they are substantive terms that modify licensee rights and obligations.

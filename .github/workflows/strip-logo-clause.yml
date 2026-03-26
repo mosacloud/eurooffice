@@ -48,15 +48,25 @@ jobs:
       GIT_COMMITTER_EMAIL: eo-robot@users.noreply.github.com
 
     steps:
+      - name: Checkout templates
+        uses: actions/checkout@v4
+        with:
+          repository: Euro-Office/fork
+          token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+          sparse-checkout: scripts
+          path: _templates
+
       - name: Checkout ${{ matrix.repo }}
         uses: actions/checkout@v4
         with:
           repository: Euro-Office/${{ matrix.repo }}
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
           ref: main
+          path: repo
 
       - name: Check for clause
         id: check
+        working-directory: repo
         run: |
           EXCLUDE_PATHS=(! -path "*/node_modules/*" ! -path "*/vendor/*")
           # When running on fork, skip submodule directories to avoid double-processing
@@ -78,6 +88,7 @@ jobs:
 
       - name: Strip clause
         if: steps.check.outputs.count != '0'
+        working-directory: repo
         run: |
           EXCLUDE_PATHS=(! -path "*/node_modules/*" ! -path "*/vendor/*")
           if [ "${{ matrix.repo }}" = "fork" ]; then
@@ -93,6 +104,7 @@ jobs:
       - name: Create branch and commit
         if: steps.check.outputs.count != '0'
         id: commit
+        working-directory: repo
         run: |
           git checkout -b "$BRANCH_NAME"
           git add -u
@@ -102,37 +114,17 @@ jobs:
             exit 0
           fi
           echo "has_changes=true" >> "$GITHUB_OUTPUT"
-          cat > /tmp/commit-msg.txt <<EOF
-          chore(license): Remove unenforceable and non-obligatory Section 7 additions from ${{ matrix.repo }}
-
-          Under AGPLv3 Section 7, downstream recipients may remove terms that constitute "further restrictions" beyond what Section 7(a)-(f) permits, as affirmed by the FSF.
-
-          Logo retention requirement (Section 7(b)): Section 7(b) permits requiring preservation of "legal notices or author attributions". A product logo is a trademark/brand element, not a legal notice or author attribution. It therefore exceeds the scope of 7(b), qualifies as a "further restriction" under Section 10, and may be removed.
-
-          Trademark disclaimer (Section 7(e)): Purely declaratory — the AGPLv3 does not grant trademark rights in any case. The disclaimer creates no affirmative obligation on the licensee and removing it changes no rights or obligations. There is no legal basis requiring its preservation.
-
-          Contact address: The postal address of Ascensio System SIA is informational only. No provision of the AGPLv3 requires downstream recipients to preserve the original licensor's contact details.
-
-          Appropriate Legal Notices reminder: This paragraph merely restates the obligation already imposed by AGPLv3 Section 5(d). It is not a Section 7 additional term and its removal does not affect compliance obligations, which derive from the license text itself.
-
-          The Section 7(a) warranty exclusion and CC BY-SA 4.0 notice for GUI assets are retained as they are substantive terms that modify licensee rights and obligations.
-          EOF
-          # Strip leading whitespace from YAML indentation
-          sed -i 's/^          //' /tmp/commit-msg.txt
+          sed 's/__REPO__/${{ matrix.repo }}/g' ../_templates/scripts/strip-logo-clause-commit.txt > /tmp/commit-msg.txt
           git commit -F /tmp/commit-msg.txt
           git push origin "$BRANCH_NAME"
 
       - name: Create pull request and merge
         if: steps.check.outputs.count != '0' && steps.commit.outputs.has_changes == 'true'
+        working-directory: repo
         env:
           GH_TOKEN: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
         run: |
-          cat > /tmp/pr-body.txt <<EOF
-          Automated removal of unenforceable Section 7(b) trademark clause.
-
-          Stripped ${{ steps.check.outputs.count }} files. See commit message for legal rationale.
-          EOF
-          sed -i 's/^          //' /tmp/pr-body.txt
+          sed 's/__COUNT__/${{ steps.check.outputs.count }}/g' ../_templates/scripts/strip-logo-clause-pr-body.txt > /tmp/pr-body.txt
           PR_URL=$(gh pr create \
             --repo "Euro-Office/${{ matrix.repo }}" \
             --base main \
