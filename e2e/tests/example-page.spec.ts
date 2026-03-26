@@ -36,6 +36,29 @@ test.describe('Example page - Create new', () => {
       const editorIframe = editorPage.locator('iframe[name="frameEditor"]');
       await expect(editorIframe).toBeAttached({ timeout: 15_000 });
       await expect(editorIframe).toHaveAttribute('src', /documenteditor|spreadsheeteditor|presentationeditor/);
+
+      // 3. Wait for the file to finish loading inside the editor iframe.
+      //    The loading mask (#loading-mask) is removed from the DOM once ready.
+      const frame = editorPage.frameLocator('iframe[name="frameEditor"]');
+      await expect(frame.locator('#loading-mask')).toBeHidden({ timeout: 30_000 });
+
+      // 4. Verify the Insert tab is clickable and becomes active.
+      const insertTab = frame.locator('a[data-tab="ins"]');
+      await insertTab.click();
+      await expect(frame.locator('li.ribtab:has(a[data-tab="ins"])')).toHaveClass(/active/);
+
+      // 5. Verify the View tab is clickable and becomes active.
+      const viewTab = frame.locator('a[data-tab="view"]');
+      await viewTab.click();
+      await expect(frame.locator('li.ribtab:has(a[data-tab="view"])')).toHaveClass(/active/);
+
+      // 6. Verify typing into the editor works.
+      //    Click the Home tab first to return to the editing surface, then click
+      //    the canvas area and type. A successful keystroke enables the undo button.
+      await frame.locator('a[data-tab="home"]').click();
+      await frame.locator('#editor_sdk').click();
+      await editorPage.keyboard.type('Hello');
+      await expect(frame.locator('#slot-btn-undo button').first()).not.toHaveClass(/disabled/, { timeout: 5_000 });
     });
   }
 });
