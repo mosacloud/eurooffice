@@ -15,6 +15,11 @@ on:
           - core
           - server
           - fork
+      auto-merge:
+        description: 'Trigger auto bot merge'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   prepare:
@@ -134,3 +139,7 @@ jobs:
             --title "chore(license): Remove non-obligatory Section 7 additions" \
             --body-file /tmp/pr-body.txt)
           echo "PR created: $PR_URL"
+          if [ "${{ inputs.auto-merge }}" = "true" ]; then
+            gh pr merge "$PR_URL" --merge --delete-branch
+            echo "PR bot-merged and branch deleted."
+          fi
