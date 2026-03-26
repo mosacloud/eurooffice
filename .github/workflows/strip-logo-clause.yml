@@ -118,7 +118,7 @@ jobs:
           git commit -F ../_templates/scripts/strip-logo-clause-commit.txt
           git push origin "$BRANCH_NAME"
 
-      - name: Create pull request and merge
+      - name: Create pull request
         if: steps.check.outputs.count != '0' && steps.commit.outputs.has_changes == 'true'
         working-directory: repo
         env:
@@ -132,5 +132,3 @@ jobs:
             --title "chore(license): Remove non-obligatory Section 7 additions" \
             --body-file /tmp/pr-body.txt)
           echo "PR created: $PR_URL"
-          gh pr merge "$PR_URL" --merge --delete-branch
-          echo "PR merged and branch deleted."
