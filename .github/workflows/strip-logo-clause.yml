@@ -53,14 +53,16 @@ jobs:
       GIT_COMMITTER_EMAIL: eo-robot@users.noreply.github.com
 
     steps:
-      - name: Checkout templates
-        uses: actions/checkout@v4
-        with:
-          repository: Euro-Office/fork
-          token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
-          ref: main
-          sparse-checkout: scripts
-          path: _templates
+      - name: Fetch templates
+        env:
+          GH_TOKEN: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
+        run: |
+          mkdir -p /tmp/templates
+          for f in strip-logo-clause-commit.txt strip-logo-clause-pr-body.txt; do
+            curl -sfH "Authorization: token $GH_TOKEN" \
+              "https://raw.githubusercontent.com/Euro-Office/fork/main/scripts/$f" \
+              -o "/tmp/templates/$f"
+          done
 
       - name: Checkout ${{ matrix.repo }}
         uses: actions/checkout@v4
@@ -68,11 +70,9 @@ jobs:
           repository: Euro-Office/${{ matrix.repo }}
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
           ref: main
-          path: repo
 
       - name: Check for clause
         id: check
-        working-directory: repo
         run: |
           EXCLUDE_PATHS=(! -path "*/node_modules/*" ! -path "*/vendor/*")
           # When running on fork, skip submodule directories to avoid double-processing
@@ -94,7 +94,6 @@ jobs:
 
       - name: Strip clause
         if: steps.check.outputs.count != '0'
-        working-directory: repo
         run: |
           EXCLUDE_PATHS=(! -path "*/node_modules/*" ! -path "*/vendor/*")
           if [ "${{ matrix.repo }}" = "fork" ]; then
@@ -112,7 +111,6 @@ jobs:
       - name: Create branch and commit
         if: steps.check.outputs.count != '0'
         id: commit
-        working-directory: repo
         run: |
           git checkout -b "$BRANCH_NAME"
           git add -u
@@ -122,16 +120,15 @@ jobs:
             exit 0
           fi
           echo "has_changes=true" >> "$GITHUB_OUTPUT"
-          git commit -F ../_templates/scripts/strip-logo-clause-commit.txt
+          git commit -F /tmp/templates/strip-logo-clause-commit.txt
           git push origin "$BRANCH_NAME"
 
       - name: Create pull request
         if: steps.check.outputs.count != '0' && steps.commit.outputs.has_changes == 'true'
-        working-directory: repo
         env:
           GH_TOKEN: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
         run: |
-          sed 's/__COUNT__/${{ steps.check.outputs.count }}/g' ../_templates/scripts/strip-logo-clause-pr-body.txt > /tmp/pr-body.txt
+          sed 's/__COUNT__/${{ steps.check.outputs.count }}/g' /tmp/templates/strip-logo-clause-pr-body.txt > /tmp/pr-body.txt
           PR_URL=$(gh pr create \
             --repo "Euro-Office/${{ matrix.repo }}" \
             --base main \
