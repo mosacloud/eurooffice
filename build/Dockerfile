@@ -259,7 +259,7 @@ COPY build/configs/nginx/includes /etc/nginx/includes/
 RUN sed -i "s/__PRODUCT_VERSION__/${PRODUCT_VERSION}/g" /etc/nginx/includes/ds-docservice.conf
 
 COPY build/configs/core/DoctRenderer.config ${EO_ROOT}/server/FileConverter/bin/DoctRenderer.config
-COPY build/configs/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY build/configs/supervisor/ /etc/supervisor/conf.d/
 COPY --chmod=755 build/scripts/documentserver-flush-cache.sh /usr/bin/documentserver-flush-cache.sh
 COPY --chmod=755 build/scripts/documentserver-generate-allfonts.sh /usr/bin/documentserver-generate-allfonts.sh
 COPY --chmod=755 build/scripts/entrypoint.sh /entrypoint.sh
