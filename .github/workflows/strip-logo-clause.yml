@@ -1,4 +1,5 @@
 name: Strip Section 7(b) trademark clause
+run-name: "Strip Section 7(b) clause (${{ inputs.project }})"
 
 on:
   workflow_dispatch:
