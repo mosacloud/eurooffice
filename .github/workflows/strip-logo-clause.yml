@@ -52,7 +52,7 @@ jobs:
         with:
           repository: Euro-Office/${{ matrix.repo }}
           token: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
-          fetch-depth: 0
+          ref: main
 
       - name: Check for clause
         id: check
@@ -130,8 +130,6 @@ jobs:
           Automated removal of unenforceable Section 7(b) trademark clause.
 
           Stripped ${{ steps.check.outputs.count }} files. See commit message for legal rationale.
-
-          Triggered by: @${{ github.actor }} via workflow_dispatch
           EOF
           sed -i 's/^          //' /tmp/pr-body.txt
           PR_URL=$(gh pr create \
@@ -141,6 +139,5 @@ jobs:
             --title "chore(license): Remove non-obligatory Section 7 additions" \
             --body-file /tmp/pr-body.txt)
           echo "PR created: $PR_URL"
-          # TODO: uncomment after testing
-          # gh pr merge "$PR_URL" --merge --delete-branch
-          # echo "PR merged and branch deleted."
+          gh pr merge "$PR_URL" --merge --delete-branch
+          echo "PR merged and branch deleted."
