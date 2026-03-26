@@ -4,7 +4,7 @@
 ln -sf /etc/onlyoffice/documentserver /config 2>/dev/null || true
 
 service postgresql start
-service rabbitmq-server start
+runuser -u rabbitmq -- rabbitmq-server -detached
 service redis-server start
 service nginx start
 
