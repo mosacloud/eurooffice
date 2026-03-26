@@ -81,4 +81,11 @@ fi
 
 update_welcome_page
 
+enable_supervisor_program() {
+    sed -i 's/^autostart=false$/autostart=true/' "/etc/supervisor/conf.d/$1.conf"
+}
+
+[ "${ADMINPANEL_ENABLED:-false}" = "true" ] && enable_supervisor_program ds-adminpanel
+[ "${EXAMPLE_ENABLED:-false}" = "true" ]    && enable_supervisor_program ds-example
+
 /usr/bin/supervisord
