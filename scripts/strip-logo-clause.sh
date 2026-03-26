@@ -13,18 +13,28 @@
 # Skips: node_modules/, vendor/
 # File types: js, less, css, html, htm, py, sh, json, ts, cpp, h, c
 #
+# Flow:
+#   1. Creates a branch (chore/strip-logo-clause-YYYYMMDD) per repo
+#   2. Fetches origin and merges main onto the branch
+#   3. Scans for files containing the clause
+#   4. Prompts for confirmation, then strips and commits
+#   5. Optionally pushes, creates a PR, and merges via the eo-robot bot account
+#
+# Set EO_ROBOT_TOKEN to a GitHub PAT for the bot account to skip the token
+# prompt. If not set, the script will prompt for it interactively.
+#
 # Usage:
 #   Strip current repo (run from within a project directory):
-#     ./fork/scripts/strip-logo-clause.sh
+#     ../scripts/strip-logo-clause.sh
 #
 #   Strip a specific project:
-#     ./fork/scripts/strip-logo-clause.sh web-apps
-#     ./fork/scripts/strip-logo-clause.sh sdkjs
-#     ./fork/scripts/strip-logo-clause.sh core
-#     ./fork/scripts/strip-logo-clause.sh server
+#     ./scripts/strip-logo-clause.sh web-apps
+#     ./scripts/strip-logo-clause.sh sdkjs
+#     ./scripts/strip-logo-clause.sh core
+#     ./scripts/strip-logo-clause.sh server
 #
 #   Strip all projects:
-#     ./fork/scripts/strip-logo-clause.sh --all
+#     ./scripts/strip-logo-clause.sh --all
 #
 #   From inside the Docker container (via Makefile):
 #     make strip-logo-clause            (current repo)
@@ -34,9 +44,11 @@
 #   Run after upstream merges to remove any re-introduced clauses.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 PATTERN="Pursuant to Section 7(b)"
+COMMIT_AUTHOR="Euro-Office Robot <eo-robot@users.noreply.github.com>"
+BRANCH_NAME="chore/strip-logo-clause-$(date +%Y%m%d)"
 
 # macOS: avoid "illegal byte sequence" errors on files with non-UTF8 bytes
 export LC_ALL=C
@@ -64,7 +76,7 @@ else
     CWD="$(pwd)"
     CURRENT_DIR="${CWD#$PROJECT_ROOT/}"
     CURRENT_DIR="${CURRENT_DIR%%/*}"
-    if [ -d "$PROJECT_ROOT/$CURRENT_DIR/.git" ]; then
+    if [ -e "$PROJECT_ROOT/$CURRENT_DIR/.git" ]; then
         DIRS=("$CURRENT_DIR")
     else
         echo "Error: could not detect repo from current directory."
@@ -97,6 +109,27 @@ spin() {
     printf "\r                                                \r"
 }
 
+# Create branch, fetch, and merge main for each repo
+echo "Preparing branches..."
+for dir in "${DIRS[@]}"; do
+    REPO="$PROJECT_ROOT/$dir"
+    if [ ! -e "$REPO/.git" ]; then
+        continue
+    fi
+
+    DEFAULT_BRANCH=$(git -C "$REPO" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||')
+    if [ -z "$DEFAULT_BRANCH" ]; then
+        DEFAULT_BRANCH="main"
+    fi
+
+    echo "  $dir: fetching and creating branch $BRANCH_NAME..."
+    git -C "$REPO" fetch origin
+    git -C "$REPO" checkout "$DEFAULT_BRANCH"
+    git -C "$REPO" pull origin "$DEFAULT_BRANCH"
+    git -C "$REPO" checkout -b "$BRANCH_NAME"
+done
+echo ""
+
 DIR_LABEL="${DIRS[*]}"
 echo "Finding files in ${DIR_LABEL} containing AGPL Section 7(b) trademark clause..."
 
@@ -123,7 +156,19 @@ done
 rm -f "$TMPFILE"
 
 if [ "$TOTAL" -eq 0 ]; then
-    echo "No files to strip."
+    echo "No files to strip. Cleaning up branches..."
+    for dir in "${DIRS[@]}"; do
+        REPO="$PROJECT_ROOT/$dir"
+        if [ ! -e "$REPO/.git" ]; then
+            continue
+        fi
+        DEFAULT_BRANCH=$(git -C "$REPO" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||')
+        if [ -z "$DEFAULT_BRANCH" ]; then
+            DEFAULT_BRANCH="main"
+        fi
+        git -C "$REPO" checkout "$DEFAULT_BRANCH"
+        git -C "$REPO" branch -d "$BRANCH_NAME" 2>/dev/null
+    done
     exit 0
 fi
 
@@ -133,12 +178,15 @@ echo ""
 # Show commit message preview
 echo "Commit message preview:"
 for dir in "${DIRS[@]}"; do
-    if [ -d "$PROJECT_ROOT/$dir/.git" ]; then
+    if [ -e "$PROJECT_ROOT/$dir/.git" ]; then
         echo "---"
         sed "s/%DIR%/$dir/g" "$TEMPLATE"
     fi
 done
 echo "---"
+echo ""
+echo "Branch: $BRANCH_NAME"
+echo "Commit author: $COMMIT_AUTHOR"
 echo ""
 printf "Proceed? Strip and commit [y] / Cancel [n]: "
 read -r choice
@@ -146,7 +194,19 @@ read -r choice
 case "$choice" in
     y|Y) ;;
     *)
-        echo "Cancelled."
+        echo "Cancelled. Cleaning up branches..."
+        for dir in "${DIRS[@]}"; do
+            REPO="$PROJECT_ROOT/$dir"
+            if [ ! -e "$REPO/.git" ]; then
+                continue
+            fi
+            DEFAULT_BRANCH=$(git -C "$REPO" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||')
+            if [ -z "$DEFAULT_BRANCH" ]; then
+                DEFAULT_BRANCH="main"
+            fi
+            git -C "$REPO" checkout "$DEFAULT_BRANCH"
+            git -C "$REPO" branch -d "$BRANCH_NAME" 2>/dev/null
+        done
         exit 0
         ;;
 esac
@@ -168,16 +228,83 @@ done
 echo "Done. Stripped $TOTAL files."
 
 # Commit
+COMMITTED_DIRS=()
 for dir in "${DIRS[@]}"; do
     REPO="$PROJECT_ROOT/$dir"
-    if [ ! -d "$REPO/.git" ]; then
+    if [ ! -e "$REPO/.git" ]; then
         continue
     fi
     if git -C "$REPO" diff --quiet 2>/dev/null; then
         continue
     fi
     COMMIT_MSG=$(sed "s/%DIR%/$dir/g" "$TEMPLATE")
-    git -C "$REPO" add -A
-    git -C "$REPO" commit -m "$COMMIT_MSG"
+    git -C "$REPO" add -u
+    COMMITTER_EMAIL="${COMMIT_AUTHOR#*<}"
+    GIT_COMMITTER_NAME="${COMMIT_AUTHOR%% <*}" GIT_COMMITTER_EMAIL="${COMMITTER_EMAIL%>}" git -C "$REPO" commit -m "$COMMIT_MSG" --author="$COMMIT_AUTHOR"
+    COMMITTED_DIRS+=("$dir")
     echo "Committed in $dir."
+done
+
+if [ ${#COMMITTED_DIRS[@]} -eq 0 ]; then
+    exit 0
+fi
+
+# Optionally create PRs and merge via the bot account
+echo ""
+printf "Create pull requests and merge? [y/n]: "
+read -r pr_choice
+
+case "$pr_choice" in
+    y|Y) ;;
+    *)
+        echo "Skipping PR creation."
+        exit 0
+        ;;
+esac
+
+if [ -z "$EO_ROBOT_TOKEN" ]; then
+    printf "EO_ROBOT_TOKEN not set. Enter token (or leave blank to skip): "
+    read -rs token_input
+    echo ""
+    if [ -z "$token_input" ]; then
+        echo "No token provided. Skipping PR creation."
+        exit 0
+    fi
+    EO_ROBOT_TOKEN="$token_input"
+fi
+
+PR_TITLE="chore(license): Remove non-obligatory Section 7 additions"
+
+for dir in "${COMMITTED_DIRS[@]}"; do
+    REPO="$PROJECT_ROOT/$dir"
+    REMOTE_URL=$(git -C "$REPO" remote get-url origin)
+    # Extract owner/repo from SSH or HTTPS URL
+    REPO_SLUG=$(echo "$REMOTE_URL" | sed -E 's|.*github\.com[:/]||; s|\.git$||')
+    DEFAULT_BRANCH=$(git -C "$REPO" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||')
+    if [ -z "$DEFAULT_BRANCH" ]; then
+        DEFAULT_BRANCH="main"
+    fi
+
+    echo ""
+    echo "Creating PR for $dir ($REPO_SLUG)..."
+
+    git -C "$REPO" push origin "$BRANCH_NAME"
+
+    PR_URL=$(GH_TOKEN="$EO_ROBOT_TOKEN" gh pr create \
+        --repo "$REPO_SLUG" \
+        --base "$DEFAULT_BRANCH" \
+        --head "$BRANCH_NAME" \
+        --title "$PR_TITLE" \
+        --body "Automated removal of unenforceable Section 7(b) trademark clause. See commit message for legal rationale." \
+        2>&1)
+
+    if [ $? -eq 0 ]; then
+        echo "  PR created: $PR_URL"
+        GH_TOKEN="$EO_ROBOT_TOKEN" gh pr merge "$PR_URL" --merge --delete-branch
+        echo "  Merged and branch deleted."
+        git -C "$REPO" checkout "$DEFAULT_BRANCH"
+        git -C "$REPO" pull origin "$DEFAULT_BRANCH"
+    else
+        echo "  Failed to create PR: $PR_URL"
+    fi
 done
