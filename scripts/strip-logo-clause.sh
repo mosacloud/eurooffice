@@ -37,6 +37,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 PATTERN="Pursuant to Section 7(b)"
+COMMIT_AUTHOR="Euro-Office Robot <eo-robot@users.noreply.github.com>"
 
 # macOS: avoid "illegal byte sequence" errors on files with non-UTF8 bytes
 export LC_ALL=C
@@ -64,7 +65,7 @@ else
     CWD="$(pwd)"
     CURRENT_DIR="${CWD#$PROJECT_ROOT/}"
     CURRENT_DIR="${CURRENT_DIR%%/*}"
-    if [ -d "$PROJECT_ROOT/$CURRENT_DIR/.git" ]; then
+    if [ -e "$PROJECT_ROOT/$CURRENT_DIR/.git" ]; then
         DIRS=("$CURRENT_DIR")
     else
         echo "Error: could not detect repo from current directory."
@@ -133,12 +134,14 @@ echo ""
 # Show commit message preview
 echo "Commit message preview:"
 for dir in "${DIRS[@]}"; do
-    if [ -d "$PROJECT_ROOT/$dir/.git" ]; then
+    if [ -e "$PROJECT_ROOT/$dir/.git" ]; then
         echo "---"
         sed "s/%DIR%/$dir/g" "$TEMPLATE"
     fi
 done
 echo "---"
+echo ""
+echo "Commit author: $COMMIT_AUTHOR"
 echo ""
 printf "Proceed? Strip and commit [y] / Cancel [n]: "
 read -r choice
@@ -170,14 +173,14 @@ echo "Done. Stripped $TOTAL files."
 # Commit
 for dir in "${DIRS[@]}"; do
     REPO="$PROJECT_ROOT/$dir"
-    if [ ! -d "$REPO/.git" ]; then
+    if [ ! -e "$REPO/.git" ]; then
         continue
     fi
     if git -C "$REPO" diff --quiet 2>/dev/null; then
         continue
     fi
     COMMIT_MSG=$(sed "s/%DIR%/$dir/g" "$TEMPLATE")
-    git -C "$REPO" add -A
-    git -C "$REPO" commit -m "$COMMIT_MSG" --author="Euro-Office Robot <eo-robot@users.noreply.github.com>"
+    git -C "$REPO" add -u
+    git -C "$REPO" commit -m "$COMMIT_MSG" --author="$COMMIT_AUTHOR"
     echo "Committed in $dir."
 done
