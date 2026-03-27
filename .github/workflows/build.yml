@@ -72,9 +72,9 @@ jobs:
           [ -n "$WEBAPPS_BRANCH" ] && checkout_submodule web-apps  "$WEBAPPS_BRANCH"
           [ -n "$SERVER_BRANCH" ]  && checkout_submodule server    "$SERVER_BRANCH"
 
-          # These always track master, no pin needed
-          checkout_submodule dictionaries       "master"
-          checkout_submodule document-templates "master"
+          # These always track main, no pin needed
+          checkout_submodule dictionaries       "main"
+          checkout_submodule document-templates "main"
 
           echo "--- Submodule state after alignment ---"
           git submodule status
