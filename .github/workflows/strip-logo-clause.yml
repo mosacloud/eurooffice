@@ -107,7 +107,8 @@ jobs:
               -exec sed -i \
                 -e '/Pursuant to Section 7(b)/,/grant you any rights under trademark law/d' \
                 -e '/You can contact Ascensio System SIA/,/street, Riga, Latvia/d' \
-                -e '/^ \*$/{N;s/^ \*\n \*$/ */;}' {} +
+                -e '/^ \*$/{N;s/^ \*\n \*$/ */;}' \
+                -e '/^[[:space:]]*$/{N;/^[[:space:]]*\n[[:space:]]*$/d;}' {} +
 
       - name: Create branch and commit
         if: steps.check.outputs.count != '0'
