@@ -34,7 +34,7 @@ env:
 
 jobs:
   clone:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout fork repository (with submodules)
         uses: actions/checkout@v6
@@ -87,7 +87,7 @@ jobs:
           key: ${{ runner.os }}-build-${{ github.sha }}
 
   build:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: clone
     permissions:
       contents: read
@@ -136,7 +136,7 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.ref.outputs.name }}-${{ matrix.target }},mode=max
 
   build-sdkjs:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: build
     permissions:
       contents: read
@@ -179,7 +179,7 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.ref.outputs.name }}-sdkjs,mode=max
 
   combine:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: build-sdkjs
     permissions:
       contents: read
@@ -236,7 +236,7 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.ref.outputs.name }}-final,mode=max
 
   build-develop:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: combine
     permissions:
       contents: read
@@ -288,7 +288,7 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.ref.outputs.name }}-dev,mode=max
 
   e2e:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: combine
     permissions:
       contents: read
@@ -345,7 +345,7 @@ jobs:
           retention-days: 14
 
   build-packages:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: combine
     permissions:
       contents: read
