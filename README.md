@@ -1,95 +1,78 @@
-# Euro-Office Document Server
+<!--
+SPDX-FileCopyrightText: 2026 Euro-Office contributors
+SPDX-License-Identifier: AGPL
+-->
 
-Meta-repository for building and developing the Euro-Office Document Server — a fork of ONLYOFFICE Document Server. Contains CI/CD configuration, build infrastructure, and development tooling. Component source code lives in the git submodules.
+[![License](https://img.shields.io/badge/License-GNU%20AGPL%20V3-green.svg?style=flat)](https://www.gnu.org/licenses/agpl-3.0.en.html)
 
-## Components (submodules)
+# Euro-Office
+**Your sovereign office**
 
-### `server` — Node.js backend
+![Euro-Office Document](https://raw.githubusercontent.com/Euro-Office/.github/refs/heads/main/screenshots/screenshot.png?token=GHSAT0AAAAAADWL5F5BKVVHB4VW634HN2KG2OGHH6Q)
 
-Microservice-style backend that ties everything together. Key services:
+## What is Euro-Office?
 
-- **DocService** — real-time collaboration over WebSockets (Socket.io), backed by Redis (session state) and RabbitMQ (message bus)
-- **FileConverter** — document format conversion; delegates to the native C++ binaries from `core`
-- **AdminPanel** — configuration and system monitoring UI
-- **Metrics** — StatsD-based performance metrics
+Euro-Office provides a truly open, transparent, and sovereign solution for collaborative document editing.
 
-### `web-apps` — Frontend editors
+Euro-Office is not designed for stand-alone use, but developed to be a web based and integrated in another product that handles documents, for example a file sharing solution, an online wiki, a project management tool and so on.
 
-Vanilla JS (RequireJS modules) editors for document, spreadsheet, presentation, PDF, and Visio files. Built with Grunt: LESS → CSS, Babel transpilation, Terser minification. Theming is handled via `theme/<name>/` folders with a `config.json` for brand values and LESS overrides. The active theme is set with the `THEME` environment variable at build time (we use `euro-office`).
+### Key features
+With Euro-Office you can view, edit and work with others on spreadsheets, documents, presentations and even PDF files. It has a nice web interface and we are also working on mobile and desktop apps.
 
-### `sdkjs` — JavaScript SDK
+* Work with DOCX, PPTX, XLSX, PDF, ODT, ODS, ODP, TXT and many other file formats
+* Edit documents, spreadsheets and presentation files with others in real time
+* Save the document back to the application you used to open it or download in various file formats
 
-Client-side document model layer that runs inside the editors. Implements the Office Open XML APIs for Word, Excel, and PowerPoint documents (the `word/`, `cell/`, `slide/` directories), plus PDF annotation support. Built with Grunt and Google Closure Compiler.
+## About the community
 
-### `core` — C++ rendering engine
+Euro-Office is open source and developed in public by a community of individuals and organizations. We welcome contributions from anyone, including individuals, companies, public organizations and non-profits. We are encourage anyone who cares about free and open source, modern office technology to get involved! Our goal is to have as few barriers as possible to contribution.
 
-High-performance native components for font rendering (FreeType), vector graphics (AGG), and format conversion between DOCX, PDF, EPUB, DjVu, FB2, XPS, RTF, ODF, and more (the `x2t` converter). Compiled with CMake; the resulting binaries are consumed by `server/FileConverter`.
+Current contributors and supporters include:cot
+* IONOS
+* Nextcloud
+* XWiki
+* OpenProject
+* Proton
 
-### `core-fonts` — Font assets
+* BTactic
+* You?
 
-Font files bundled with the document server to ensure consistent rendering across environments.
+### Euro-Office liberates the ONLYOFFICE code base
 
-## Getting started
+Euro-Office is based on the ONLYOFFICE Open Source, an AGPL codebase. This code base is being extensively reviewed and cleaned up, with the goal of making it easy to build and contribute to.
+Why did we resort to a fork, rather than collaborate? Of course, forking should be a last resort. Unfortunately, open collaboration with ONLYOFFICE was not possible, for a number of reasons:
+* Contributing is impossible or greatly discouraged. ONLYOFFICE typically does not review or accept pull requests. Build instructions are unreliable, outdated or just plain broken.
+* The company regularly makes controversial decisions like closing off features in the mobile apps like mobile editing, and the removal of an administrator panel.
+* Lacking transparency. Commit messages, when visible, often just refer to an issue number in an internal issue tracker. There are quite a number of binary blobs and compiled or obfuscated code blobs. Most internal code comments are Russian which makes is hard to work with. 
+* The mobile apps are not really open source but just wrappers. Example. The apps have extensive proprietary sections which will need to be re-implemented. Work on this is underway.
+* ONLYOFFICE is a Russian company (despite many attempts to hide this), and nearly all developers reside in Russia. Open Source is a global effort, but current political situation makes collaboration hard and trust difficult to earn. Especially when development is not transparent and open. A lot of users and customers require software that is not potentially influenced or controlled by the Russian government.
 
-Clone with all submodules:
+## Get involved
+Get involved! You can file issues, propose pull requests and more. We are looking forward to make the digital sovereign office space better than ever before!
 
-```sh
-git clone --recurse-submodules https://github.com/Euro-Office/fork.git
+### Try out
+We currently provide a docker image for testing and integration purposes. We are going to publish deb/rpm packages shortly.
+
+```
+docker pull ghcr.io/euro-office/documentserver:latest
+docker run -i -t -d -p 8080:80 --restart=always -e EXAMPLE_ENABLED=true -e JWT_SECRET=my_jwt_secret ghcr.io/euro-office/documentserver:latest
 ```
 
-Or, if already cloned without submodules:
+### Building
 
-```sh
-git submodule update --init --recursive
-```
+Our build steps and processes are documented in https://github.com/Euro-Office/DocumentServer/tree/main/build. For development there are more detailed steps to build and run individual components in https://github.com/Euro-Office/DocumentServer/tree/main/develop 
 
-## Building
-
-See **[build/README.md](build/README.md)** for the full guide. Quick summary:
-
-```sh
-# Build the full Docker image
-cd build && make build-image
-
-# Build only one component
-make docker-target TARGET=sdkjs
-
-# Run the container
-make run
-```
-
-## Development
-
-See **[develop/README.md](develop/README.md)** for the full guide. Quick summary:
-
-The `develop/` directory provides a Docker Compose environment with a pre-configured Nextcloud + Euro-Office stack for iterative development:
-
-```sh
-# Start the dev environment (uses locally available image)
-cd develop && make
-
-# Use the latest image from GitHub
-make pull
-
-# Build from scratch
-make build
-```
-
-Once running, the server is at `http://localhost:8081/`. Enter the container to rebuild individual components:
-
-```sh
-docker compose exec eo bash
-make web-apps    # or: make sdkjs, make core, make server
-```
-
-## Try out
-
-to be added
-
-
-## Infrastructure
-
-- **Mirroring** — ONLYOFFICE upstream repos are mirrored automatically via [`.github/workflows/updatemirror.yml`](.github/workflows/updatemirror.yml). New repos can be added there; the `scripts/mirror.sh` script handles initial setup.
-- **Container registry** — Pre-built images are on a private GitHub Container Registry. To pull them:
-  - Generate a PAT: https://github.com/settings/tokens/new?description=ghcr.io%20access%20for%20private%20packages&scopes=read:packages
-  - Authenticate your local docker agent: `docker login ghcr.io`
+## FAQ
+* What is Euro-Office?
+    * An online office component for real-time collaborative editing of Office documents like DOCX, PPTX, XLSX as well as the ODF file formats ODS, ODT and ODP.
+    * It can be embedded in digital workplace or online productivity solutions like Proton, XWiki, OpenProject, Nextcloud Hub and others to edit documents.
+* How does Euro-Office compare to IONOS Workspace, office.eu, the Proton productivity suite, Nextcloud Hub or XWiki:
+    * Euro-Office is more of an integration component. It merely handles document editing itself. Storage, as well as navigation, permissions and sharing logic has to be offered by a platform it is integrated in, like Proton Docs, Nextcloud Hub or OpenProject.
+* Who started Euro-Office?
+    * Euro-Office is an initiative of a group of European companies who saw a need for a real open, sovereign online office suite that works well with the proprietary file formats of Microsoft. Initial contributors and supporters include IONOS, Nextcloud, Proton, XWiki, OpenProject, Open-Xchange, BTactic and others.
+* Why was a new office suite needed
+	* We saw a need for a modern suite with a great MS compatibility and excellent desktop and mobile applications.
+* Why did you not work with libreoffice and collabora online?
+	* We believe open source is about collaboration and we look for oportunities for integration and collaboration with the LibreOffice community and companies like Collabora. There are already some idea how to collaborate for example in the document converter. 
+* Can I buy support or a subscription for Euro-Office?
+	* Not at the moment, but in the future some of the contributing companies might offer support subscriptions
