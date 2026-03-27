@@ -96,9 +96,10 @@ jobs:
       matrix:
         target:
           - core
-          - core-wasm
-          - web-apps
-          - server
+          # TEMPORARY: only building core to test build compatibility
+          # - core-wasm
+          # - web-apps
+          # - server
 
     steps:
       - name: Restore cache
@@ -131,6 +132,7 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.target }}-buildcache,mode=max
 
   build-sdkjs:
+    if: false  # TEMPORARY: skip — only building core
     runs-on: self-hosted
     needs: build
     permissions:
@@ -173,6 +175,7 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-sdkjs-buildcache,mode=max
 
   combine:
+    if: false  # TEMPORARY: skip — only building core
     runs-on: self-hosted
     needs: build-sdkjs
     permissions:
@@ -229,6 +232,7 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-final-buildcache,mode=max
 
   build-develop:
+    if: false  # TEMPORARY: skip — only building core
     runs-on: self-hosted
     needs: combine
     permissions:
@@ -281,6 +285,7 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-dev-buildcache,mode=max
 
   build-packages:
+    if: false  # TEMPORARY: skip — only building core
     runs-on: self-hosted
     needs: combine
     permissions:
