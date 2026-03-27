@@ -28,6 +28,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: euro-office/documentserver
+  CACHE_IMAGE_NAME: euro-office/documentserver-build-cache
   PRODUCT_VERSION: 9.2.1
   BUILD_ROOT: /package
 
@@ -131,8 +132,8 @@ jobs:
           build-args: |
             PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
             BUILD_ROOT=${{ env.BUILD_ROOT }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-${{ matrix.target }}-buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-${{ matrix.target }}-buildcache,mode=max
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.ref.outputs.name }}-${{ matrix.target }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.ref.outputs.name }}-${{ matrix.target }},mode=max
 
   build-sdkjs:
     runs-on: self-hosted
@@ -173,9 +174,9 @@ jobs:
             PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
             BUILD_ROOT=${{ env.BUILD_ROOT }}
           cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-core-wasm-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-sdkjs-buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-sdkjs-buildcache,mode=max
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.ref.outputs.name }}-core-wasm
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.ref.outputs.name }}-sdkjs
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.ref.outputs.name }}-sdkjs,mode=max
 
   combine:
     runs-on: self-hosted
@@ -213,6 +214,7 @@ jobs:
           tags: |
             type=raw,value=nightly,enable={{is_default_branch}}
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
+            type=raw,value=${{ steps.ref.outputs.name }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -220,18 +222,18 @@ jobs:
           context: .
           file: ./build/Dockerfile
           target: finalubuntu
-          push: ${{ steps.meta.outputs.tags != '' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
             PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
             BUILD_ROOT=${{ env.BUILD_ROOT }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-core-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-sdkjs-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-web-apps-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-server-buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-final-buildcache,mode=max
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.ref.outputs.name }}-core
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.ref.outputs.name }}-sdkjs
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.ref.outputs.name }}-web-apps
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.ref.outputs.name }}-server
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.ref.outputs.name }}-final,mode=max
 
   build-develop:
     runs-on: self-hosted
@@ -282,14 +284,12 @@ jobs:
             BUILD_ROOT=${{ env.BUILD_ROOT }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-final-buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-dev-buildcache,mode=max
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.ref.outputs.name }}-final
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.ref.outputs.name }}-dev,mode=max
 
   e2e:
     runs-on: self-hosted
     needs: combine
-    # Only run when the image was actually pushed (main branch or version tags)
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: read
       packages: read
@@ -308,17 +308,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Determine image tag
-        id: image
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_OUTPUT
-          else
-            echo "ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:nightly" >> $GITHUB_OUTPUT
-          fi
+      - name: Compute safe ref name
+        id: ref
+        run: echo "name=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> $GITHUB_OUTPUT
 
       - name: Pull built image
-        run: docker pull ${{ steps.image.outputs.ref }}
+        run: docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -338,7 +333,7 @@ jobs:
       - name: Run E2E tests
         working-directory: e2e
         env:
-          E2E_IMAGE: ${{ steps.image.outputs.ref }}
+          E2E_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}
         run: npm test
 
       - name: Upload Playwright report
@@ -389,11 +384,11 @@ jobs:
             PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
             BUILD_ROOT=${{ env.BUILD_ROOT }}
           cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-core-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-sdkjs-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-web-apps-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-server-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-final-buildcache
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.ref.outputs.name }}-core
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.ref.outputs.name }}-sdkjs
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.ref.outputs.name }}-web-apps
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.ref.outputs.name }}-server
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.ref.outputs.name }}-final
 
       #- name: Upload packages as artifact
       #  uses: actions/upload-artifact@v4
