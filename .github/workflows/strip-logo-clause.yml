@@ -106,7 +106,8 @@ jobs:
               "${EXCLUDE_PATHS[@]}" \
               -exec sed -i \
                 -e '/Pursuant to Section 7(b)/,/grant you any rights under trademark law/d' \
-                -e '/You can contact Ascensio System SIA/,/street, Riga, Latvia/d' {} +
+                -e '/You can contact Ascensio System SIA/,/street, Riga, Latvia/d' \
+                -e '/^ \*$/{N;s/^ \*\n \*$/ */;}' {} +
 
       - name: Create branch and commit
         if: steps.check.outputs.count != '0'
