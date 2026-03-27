@@ -47,7 +47,7 @@ jobs:
         git remote add eurooffice https://x-access-token:${{ env.GITHUB_TOKEN }}@github.com/Euro-Office/${repo}.git
         # Push all branches and tags from the cloned bare repository to the eurooffice remote.
         # Avoid --mirror because it can delete branches on the target that exist only there.
-        git push eurooffice --all --force
-        git push eurooffice --tags --force
+        git push eurooffice --all
+        git push eurooffice --tags
       env:
         GITHUB_TOKEN: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}

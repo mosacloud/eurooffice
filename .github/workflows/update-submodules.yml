@@ -37,9 +37,9 @@ jobs:
             [sdkjs]="main"
             [core]="main"
             [core-fonts]="main"
-            [document-server-integration]="master"
-            [dictionaries]="master"
-            [document-templates]="master"
+            [document-server-integration]="main"
+            [dictionaries]="main"
+            [document-templates]="main"
           )
 
           for path in "${!BRANCHES[@]}"; do
@@ -68,6 +68,4 @@ jobs:
           body: |
             Automated nightly submodule bump.
 
-            Updates each submodule to the latest commit on its tracking branch:
-            - `server`, `web-apps`, `sdkjs`, `core`, `core-fonts` → `main`
-            - `document-server-integration`, `dictionaries`, `document-templates` → `master`
+            Updates each submodule to the latest commit on its tracking branch.
