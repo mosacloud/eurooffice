@@ -16,6 +16,10 @@ variable "BUILD_ROOT" {
   default = "/package"
 }
 
+variable "PACKAGE_BASE" {
+  default = "finalubuntu"
+}
+
 variable "NUGET_CACHE" {
   default = "local"
   validation {
@@ -54,6 +58,7 @@ target "_common" {
     BUILD_ROOT      = "${BUILD_ROOT}"
     NUGET_CACHE     = "${NUGET_CACHE}"
     CACHE_BUST      = "${CACHE_BUST}"
+    PACKAGE_BASE    = "${PACKAGE_BASE}"
   }
 }
 
@@ -170,7 +175,8 @@ target "packages" {
   target     = "packages"       # points to the FROM scratch stage
   tags       = ["${REGISTRY}/packages:${TAG}"]
   contexts = {
-    documentserver  = "target:documentserver"
+    finalubuntu     = "target:documentserver"
+    develop         = "target:develop"
     core            = "target:core"
     server          = "target:server"
     sdkjs           = "target:sdkjs"
