@@ -14,6 +14,9 @@
 #### PACKAGE ####
 # Extends finalubuntu (or a pre-built image via PACKAGE_BASE); installs packaging tools, then runs build-packages.sh
 # to populate /build/package/out/ and invoke the upstream Makefile.
+
+ARG PACKAGE_BASE
+
 FROM ${PACKAGE_BASE} AS package
 ARG PRODUCT_VERSION
 ARG BUILD_NUMBER=0
