@@ -29,7 +29,7 @@ variable "NUGET_SOURCE_PATH" {
 }
 
 variable "CACHE_BUST" {
-  default = "1"
+  default = "2"
 }
 
 # ──────────────────────────────────────────────
@@ -37,7 +37,7 @@ variable "CACHE_BUST" {
 # ──────────────────────────────────────────────
 
 group "default" {
-  targets = ["finalubuntu"]
+  targets = ["documentserver"]
 }
 
 group "develop" {
@@ -146,9 +146,9 @@ target "develop" {
   context    = "."
   dockerfile = "./build/develop.bake.Dockerfile"
   target     = "develop"
-  tags       = ["${REGISTRY}/develop:${TAG}"]
+  tags       = ["${REGISTRY}/documentserver:${TAG}-dev"]
   contexts = {
-    documentserver = "target:documentserver"
+    finalubuntu    = "target:documentserver"
     core           = "target:core"
     server         = "target:server"
     sdkjs          = "target:sdkjs"

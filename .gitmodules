@@ -27,3 +27,6 @@
 [submodule "document-server-package"]
 	path = document-server-package
 	url = git@github.com:Euro-Office/document-server-package.git
+[submodule "sdkjs-forms"]
+	path = sdkjs-forms
+	url = https://github.com/Euro-Office/sdkjs-forms.git
