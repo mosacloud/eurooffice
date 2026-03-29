@@ -32,6 +32,9 @@ env:
   BUILD_ROOT: /package
 
 jobs:
+  # ─────────────────────────────────────────────────────────────
+  # CLONE  – unchanged from original
+  # ─────────────────────────────────────────────────────────────
   clone:
     runs-on: self-hosted
     steps:
@@ -52,21 +55,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Helper that checks out a branch inside a submodule
           checkout_submodule() {
             local path=$1
             local branch=$2
             echo "🔧 Updating $path → $branch"
             pushd "$path" > /dev/null
-            git fetch origin "${branch}:${branch}"   # ensure the branch exists locally
+            git fetch origin "${branch}:${branch}"
             git checkout "$branch"
             popd > /dev/null
           }
 
-          # Only override if explicitly requested via workflow_dispatch.
-          # On a normal PR push, use whatever commit the parent repo has pinned —
-          # this is the correct behaviour: the submodule SHA in fork IS the source
-          # of truth for which core commit to build.
           [ -n "$CORE_BRANCH" ]    && checkout_submodule core      "$CORE_BRANCH"
           [ -n "$SDKJS_BRANCH" ]   && checkout_submodule sdkjs     "$SDKJS_BRANCH"
           [ -n "$WEBAPPS_BRANCH" ] && checkout_submodule web-apps  "$WEBAPPS_BRANCH"
@@ -85,21 +83,25 @@ jobs:
           path: "${{ github.workspace }}"
           key: ${{ runner.os }}-build-${{ github.sha }}
 
+  # ─────────────────────────────────────────────────────────────
+  # BUILD  – replaces the old build (matrix) + build-sdkjs + combine jobs.
+  #
+  # Bake builds documentserver and resolves all named-context
+  # dependencies (core, core-wasm, sdkjs, web-apps, server, example)
+  # in a single invocation, in parallel where the graph allows.
+  #
+  # Cache is switched from type=local (fine on one machine) to
+  # type=registry so it survives across ephemeral CI jobs.
+  #
+  # Intermediate target tags are cleared via `set` so that only the
+  # final documentserver image is pushed to GHCR when push=true.
+  # ─────────────────────────────────────────────────────────────
   build:
     runs-on: self-hosted
     needs: clone
     permissions:
       contents: read
       packages: write
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          - core
-          - core-wasm
-          - web-apps
-          - server
-
     steps:
       - name: Restore cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -117,30 +119,78 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Compute safe ref name
-        id: ref
-        run: echo "name=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> $GITHUB_OUTPUT
+      - name: Compute ref name, image tag and push flag
+        id: meta
+        run: |
+          REF_NAME=$(echo '${{ github.ref_name }}' | tr '/' '-')
+          echo "ref_name=${REF_NAME}" >> $GITHUB_OUTPUT
 
-      - name: Build Docker image (intermediate stage)
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.4.0
+          if [[ "${{ github.ref }}" == "refs/heads/${{ github.event.repository.default_branch }}" ]]; then
+            echo "tag=nightly" >> $GITHUB_OUTPUT
+            echo "push=true"   >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "tag=latest"  >> $GITHUB_OUTPUT
+            echo "push=true"   >> $GITHUB_OUTPUT
+          else
+            echo "tag=${REF_NAME}" >> $GITHUB_OUTPUT
+            echo "push=false"      >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build (and conditionally push) documentserver
+        uses: docker/bake-action@v5
         with:
-          context: .
-          file: ./build/Dockerfile
-          target: ${{ matrix.target }}
-          push: false
-          build-args: |
-            PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
-            BUILD_ROOT=${{ env.BUILD_ROOT }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-${{ matrix.target }}-buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-${{ matrix.target }}-buildcache,mode=max
+          files: ./docker-bake.hcl
+          targets: documentserver
+          push: ${{ steps.meta.outputs.push }}
+          set: |
+            core.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache
+            core.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache,mode=max
+            core.tags=
+            core-wasm.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache
+            core-wasm.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache,mode=max
+            core-wasm.tags=
+            sdkjs.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache
+            sdkjs.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache,mode=max
+            sdkjs.tags=
+            web-apps.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache
+            web-apps.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache,mode=max
+            web-apps.tags=
+            server.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache
+            server.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache,mode=max
+            server.tags=
+            example.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache
+            example.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache,mode=max
+            example.tags=
+            documentserver.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache
+            documentserver.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache,mode=max
+            documentserver.tags=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
+        env:
+          # REGISTRY must be the full ghcr.io org prefix so that bake constructs
+          # correct image tags: ${REGISTRY}/documentserver:${TAG}
+          REGISTRY: ghcr.io/euro-office
+          TAG: ${{ steps.meta.outputs.tag }}
+          PRODUCT_VERSION: ${{ env.PRODUCT_VERSION }}
+          BUILD_ROOT: ${{ env.BUILD_ROOT }}
+          # Change to "remote" if your self-hosted runner does not have a local
+          # NuGet cache volume mounted at /nuget-cache
+          NUGET_CACHE: local
 
-  build-sdkjs:
+  # ─────────────────────────────────────────────────────────────
+  # BUILD-DEVELOP  – replaces the old build-develop job.
+  #
+  # The develop target pulls in documentserver + all dep targets
+  # via named contexts; every dep is a registry-cache hit here,
+  # so only the thin develop layer actually builds.
+  #
+  # Published only on the default branch (no "latest-dev" for tags
+  # or feature branches).
+  # ─────────────────────────────────────────────────────────────
+  build-develop:
     runs-on: self-hosted
     needs: build
     permissions:
       contents: read
       packages: write
-
     steps:
       - name: Restore cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -158,140 +208,73 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Compute safe ref name
-        id: ref
-        run: echo "name=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> $GITHUB_OUTPUT
-
-      - name: Build Docker image (intermediate stage)
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.4.0
-        with:
-          context: .
-          file: ./build/Dockerfile
-          target: sdkjs
-          push: false
-          build-args: |
-            PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
-            BUILD_ROOT=${{ env.BUILD_ROOT }}
-          cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-core-wasm-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-sdkjs-buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-sdkjs-buildcache,mode=max
-
-  combine:
-    runs-on: self-hosted
-    needs: build-sdkjs
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Restore cache
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: "${{ github.workspace }}"
-          key: ${{ runner.os }}-build-${{ github.sha }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Compute safe ref name
-        id: ref
-        run: echo "name=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> $GITHUB_OUTPUT
-
-      - name: Extract metadata for Docker
+      - name: Compute ref name and push flag
         id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        run: |
+          echo "ref_name=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> $GITHUB_OUTPUT
+          # Develop image is only published on the default branch
+          if [[ "${{ github.ref }}" == "refs/heads/${{ github.event.repository.default_branch }}" ]]; then
+            echo "push=true"  >> $GITHUB_OUTPUT
+          else
+            echo "push=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build (and conditionally push) develop
+        uses: docker/bake-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=nightly,enable={{is_default_branch}}
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
+          files: ./docker-bake.hcl
+          targets: develop
+          push: ${{ steps.meta.outputs.push }}
+          set: |
+            core.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache
+            core.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache,mode=max
+            core.tags=
+            core-wasm.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache
+            core-wasm.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache,mode=max
+            core-wasm.tags=
+            sdkjs.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache
+            sdkjs.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache,mode=max
+            sdkjs.tags=
+            web-apps.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache
+            web-apps.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache,mode=max
+            web-apps.tags=
+            server.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache
+            server.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache,mode=max
+            server.tags=
+            example.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache
+            example.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache,mode=max
+            example.tags=
+            documentserver.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache
+            documentserver.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache,mode=max
+            documentserver.tags=
+            develop.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-develop-buildcache
+            develop.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-develop-buildcache,mode=max
+            develop.tags=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-dev
+        env:
+          REGISTRY: ghcr.io/euro-office
+          TAG: latest-dev
+          PRODUCT_VERSION: ${{ env.PRODUCT_VERSION }}
+          BUILD_ROOT: ${{ env.BUILD_ROOT }}
+          NUGET_CACHE: local
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.4.0
-        with:
-          context: .
-          file: ./build/Dockerfile
-          target: finalubuntu
-          push: ${{ steps.meta.outputs.tags != '' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          build-args: |
-            PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
-            BUILD_ROOT=${{ env.BUILD_ROOT }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-core-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-sdkjs-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-web-apps-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-server-buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-final-buildcache,mode=max
-
-  build-develop:
-    runs-on: self-hosted
-    needs: combine
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Restore cache
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: "${{ github.workspace }}"
-          key: ${{ runner.os }}-build-${{ github.sha }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Compute safe ref name
-        id: ref
-        run: echo "name=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> $GITHUB_OUTPUT
-
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=latest-dev,enable={{is_default_branch}}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.4.0
-        with:
-          context: .
-          file: ./build/Dockerfile
-          target: develop
-          push: ${{ steps.meta.outputs.tags != '' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          build-args: |
-            PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
-            BUILD_ROOT=${{ env.BUILD_ROOT }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-final-buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-dev-buildcache,mode=max
-
+  # ─────────────────────────────────────────────────────────────
+  # BUILD-PACKAGES  – replaces the old build-packages job.
+  #
+  # Must run after build-develop because the packages target
+  # declares `develop` as a named context (see docker-bake.hcl).
+  # All transitive deps are registry-cache hits at this point;
+  # only the packages export stage executes fresh.
+  #
+  # Output lands in ./dist/packages/ on the runner as defined by
+  # `output = ["type=local,dest=./dist/packages"]` in the HCL.
+  # Uncomment the upload-artifact step below to publish them.
+  # ─────────────────────────────────────────────────────────────
   build-packages:
     runs-on: self-hosted
-    needs: combine
+    needs: build-develop
     permissions:
       contents: read
       packages: write
-
     steps:
       - name: Restore cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -309,31 +292,48 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Compute safe ref name
-        id: ref
-        run: echo "name=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> $GITHUB_OUTPUT
+      - name: Compute ref name
+        id: meta
+        run: echo "ref_name=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> $GITHUB_OUTPUT
 
       - name: Build packages (.deb and .rpm)
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.4.0
+        uses: docker/bake-action@v5
         with:
-          context: .
-          file: ./build/Dockerfile
-          target: packages
-          outputs: type=local,dest=./packages-output
+          files: ./docker-bake.hcl
+          targets: packages
+          # push=false: the packages target uses type=local output (./dist/packages),
+          # not an image push. Defined in the HCL; no override needed here.
           push: false
-          build-args: |
-            PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
-            BUILD_ROOT=${{ env.BUILD_ROOT }}
-          cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-core-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-sdkjs-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-web-apps-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-server-buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}-final-buildcache
+          set: |
+            core.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache
+            core.tags=
+            core-wasm.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache
+            core-wasm.tags=
+            sdkjs.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache
+            sdkjs.tags=
+            web-apps.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache
+            web-apps.tags=
+            server.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache
+            server.tags=
+            example.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache
+            example.tags=
+            documentserver.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache
+            documentserver.tags=
+            develop.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-develop-buildcache
+            develop.tags=
+            packages.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-packages-buildcache
+            packages.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-packages-buildcache,mode=max
+            packages.tags=
+        env:
+          REGISTRY: ghcr.io/euro-office
+          TAG: latest
+          PRODUCT_VERSION: ${{ env.PRODUCT_VERSION }}
+          BUILD_ROOT: ${{ env.BUILD_ROOT }}
+          NUGET_CACHE: local
 
       #- name: Upload packages as artifact
       #  uses: actions/upload-artifact@v4
       #  with:
       #    name: packages-${{ github.sha }}
-      #    path: packages-output/
+      #    path: dist/packages/
       #    retention-days: 30
