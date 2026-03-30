@@ -58,11 +58,12 @@ jobs:
           GH_TOKEN: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
         run: |
           mkdir -p /tmp/templates
-          for f in strip-logo-clause-commit.txt strip-logo-clause-pr-body.txt; do
+          for f in strip-logo-clause-commit.txt strip-logo-clause-pr-body.txt strip-license-clauses.sh; do
             curl -sfH "Authorization: token $GH_TOKEN" \
               "https://raw.githubusercontent.com/Euro-Office/fork/main/scripts/$f" \
               -o "/tmp/templates/$f"
           done
+          chmod +x /tmp/templates/strip-license-clauses.sh
 
       - name: Checkout ${{ matrix.repo }}
         uses: actions/checkout@v4
@@ -74,41 +75,21 @@ jobs:
       - name: Check for clause
         id: check
         run: |
-          EXCLUDE_PATHS=(! -path "*/node_modules/*" ! -path "*/vendor/*")
-          # When running on fork, skip submodule directories to avoid double-processing
-          if [ "${{ matrix.repo }}" = "fork" ]; then
-            EXCLUDE_PATHS+=(! -path "*/web-apps/*" ! -path "*/sdkjs/*" ! -path "*/core/*" ! -path "*/server/*")
-          fi
-          count=$(find . -type f \( -name "*.js" -o -name "*.less" -o -name "*.css" \
-              -o -name "*.html" -o -name "*.htm" -o -name "*.py" -o -name "*.sh" \
-              -o -name "*.json" -o -name "*.ts" -o -name "*.cpp" -o -name "*.h" \
-              -o -name "*.c" \) \
-              "${EXCLUDE_PATHS[@]}" \
-              -exec grep -l "$PATTERN" {} + 2>/dev/null | wc -l | tr -d ' ')
+          count=$(grep -rl "$PATTERN" . \
+            --include="*.js" --include="*.less" --include="*.css" \
+            --include="*.html" --include="*.htm" --include="*.py" \
+            --include="*.sh" --include="*.json" --include="*.ts" \
+            --include="*.cpp" --include="*.h" --include="*.c" \
+            2>/dev/null | wc -l | tr -d ' ')
+
           echo "count=$count" >> "$GITHUB_OUTPUT"
           if [ "$count" -eq 0 ]; then
             echo "No files contain the clause in ${{ matrix.repo }}. Skipping."
-          else
-            echo "Found $count files with the clause in ${{ matrix.repo }}."
           fi
 
       - name: Strip clause
         if: steps.check.outputs.count != '0'
-        run: |
-          EXCLUDE_PATHS=(! -path "*/node_modules/*" ! -path "*/vendor/*")
-          if [ "${{ matrix.repo }}" = "fork" ]; then
-            EXCLUDE_PATHS+=(! -path "*/web-apps/*" ! -path "*/sdkjs/*" ! -path "*/core/*" ! -path "*/server/*")
-          fi
-          find . -type f \( -name "*.js" -o -name "*.less" -o -name "*.css" \
-              -o -name "*.html" -o -name "*.htm" -o -name "*.py" -o -name "*.sh" \
-              -o -name "*.json" -o -name "*.ts" -o -name "*.cpp" -o -name "*.h" \
-              -o -name "*.c" \) \
-              "${EXCLUDE_PATHS[@]}" \
-              -exec sed -i \
-                -e '/Pursuant to Section 7(b)/,/grant you any rights under trademark law/d' \
-                -e '/You can contact Ascensio System SIA/,/street, Riga, Latvia/d' \
-                -e '/^ \*$/{N;s/^ \*\n \*$/ */;}' \
-                -e '/^[[:space:]]*$/{N;/^[[:space:]]*\n[[:space:]]*$/d;}' {} +
+        run: /tmp/templates/strip-license-clauses.sh . ${{ matrix.repo }}
 
       - name: Create branch and commit
         if: steps.check.outputs.count != '0'
@@ -117,7 +98,6 @@ jobs:
           git checkout -b "$BRANCH_NAME"
           git add -u
           if git diff --cached --quiet; then
-            echo "No changes after stripping. Skipping."
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -137,8 +117,9 @@ jobs:
             --head "$BRANCH_NAME" \
             --title "chore(license): Remove non-obligatory Section 7 additions" \
             --body-file /tmp/pr-body.txt)
+
           echo "PR created: $PR_URL"
+
           if [ "${{ inputs.auto-merge }}" = "true" ]; then
             gh pr merge "$PR_URL" --merge --delete-branch
-            echo "PR bot-merged and branch deleted."
           fi
