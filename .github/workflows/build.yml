@@ -32,9 +32,6 @@ env:
   BUILD_ROOT: /package
 
 jobs:
-  # ─────────────────────────────────────────────────────────────
-  # CLONE  – unchanged from original
-  # ─────────────────────────────────────────────────────────────
   clone:
     runs-on: self-hosted
     steps:
@@ -55,16 +52,21 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Helper that checks out a branch inside a submodule
           checkout_submodule() {
             local path=$1
             local branch=$2
             echo "🔧 Updating $path → $branch"
             pushd "$path" > /dev/null
-            git fetch origin "${branch}:${branch}"
+            git fetch origin "${branch}:${branch}"   # ensure the branch exists locally
             git checkout "$branch"
             popd > /dev/null
           }
 
+          # Only override if explicitly requested via workflow_dispatch.
+          # On a normal PR push, use whatever commit the parent repo has pinned —
+          # this is the correct behaviour: the submodule SHA in fork IS the source
+          # of truth for which core commit to build.
           [ -n "$CORE_BRANCH" ]    && checkout_submodule core      "$CORE_BRANCH"
           [ -n "$SDKJS_BRANCH" ]   && checkout_submodule sdkjs     "$SDKJS_BRANCH"
           [ -n "$WEBAPPS_BRANCH" ] && checkout_submodule web-apps  "$WEBAPPS_BRANCH"
@@ -84,13 +86,13 @@ jobs:
           key: ${{ runner.os }}-build-${{ github.sha }}
 
   # ─────────────────────────────────────────────────────────────
-  # BUILD  – replaces the old build (matrix) + build-sdkjs + combine jobs.
+  # BUILD
   #
   # Bake builds documentserver and resolves all named-context
   # dependencies (core, core-wasm, sdkjs, web-apps, server, example)
   # in a single invocation, in parallel where the graph allows.
   #
-  # Cache is switched from type=local (fine on one machine) to
+  # Cache is switched from type=local to
   # type=registry so it survives across ephemeral CI jobs.
   #
   # Intermediate target tags are cleared via `set` so that only the
@@ -165,18 +167,14 @@ jobs:
             documentserver.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache,mode=max
             documentserver.tags=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
         env:
-          # REGISTRY must be the full ghcr.io org prefix so that bake constructs
-          # correct image tags: ${REGISTRY}/documentserver:${TAG}
           REGISTRY: ghcr.io/euro-office
           TAG: ${{ steps.meta.outputs.tag }}
           PRODUCT_VERSION: ${{ env.PRODUCT_VERSION }}
           BUILD_ROOT: ${{ env.BUILD_ROOT }}
-          # Change to "remote" if your self-hosted runner does not have a local
-          # NuGet cache volume mounted at /nuget-cache
           NUGET_CACHE: local
 
   # ─────────────────────────────────────────────────────────────
-  # BUILD-DEVELOP  – replaces the old build-develop job.
+  # BUILD-DEVELOP
   #
   # The develop target pulls in documentserver + all dep targets
   # via named contexts; every dep is a registry-cache hit here,
@@ -258,16 +256,11 @@ jobs:
           NUGET_CACHE: local
 
   # ─────────────────────────────────────────────────────────────
-  # BUILD-PACKAGES  – replaces the old build-packages job.
+  # BUILD-PACKAGES
   #
-  # Must run after build-develop because the packages target
-  # declares `develop` as a named context (see docker-bake.hcl).
   # All transitive deps are registry-cache hits at this point;
   # only the packages export stage executes fresh.
   #
-  # Output lands in ./dist/packages/ on the runner as defined by
-  # `output = ["type=local,dest=./dist/packages"]` in the HCL.
-  # Uncomment the upload-artifact step below to publish them.
   # ─────────────────────────────────────────────────────────────
   build-packages:
     runs-on: self-hosted
@@ -301,8 +294,6 @@ jobs:
         with:
           files: ./docker-bake.hcl
           targets: packages
-          # push=false: the packages target uses type=local output (./dist/packages),
-          # not an image push. Defined in the HCL; no override needed here.
           push: false
           set: |
             core.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache
