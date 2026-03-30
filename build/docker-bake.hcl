@@ -1,7 +1,7 @@
 # docker-bake.hcl
 
 variable "REGISTRY" {
-  default = "euro-office"
+  default = "ghcr.io/euro-office"
 }
 
 variable "TAG" {
