@@ -3,14 +3,14 @@ name: Euro-Office development environment
 services:
   eo:
     image: ghcr.io/euro-office/documentserver:latest-dev
-    build:
-      context: ../
-      dockerfile: ./build/Dockerfile
+    #build:
+    #  context: ../
+    #  dockerfile: ./build/Dockerfile
       # finalubuntu for full build, or develop to add build tools to the container
-      target: develop
-      args:
-        PRODUCT_VERSION: "${PRODUCT_VERSION}"
-        BUILD_ROOT: "/package"
+    #  target: develop
+    #  args:
+    #    PRODUCT_VERSION: "${PRODUCT_VERSION}"
+    #    BUILD_ROOT: "/package"
     container_name: eo
     ports:
       - "8080:80"

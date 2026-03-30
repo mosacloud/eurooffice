@@ -8,6 +8,6 @@ pull:
 	docker compose pull && docker compose up -d && docker compose exec eo bash
 
 build:
-	(cd ../build && docker buildx bake) && \
+	(cd ../build && docker buildx bake develop) && \
 	(docker compose up -d) && \
 	(docker compose exec eo bash)
