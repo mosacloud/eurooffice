@@ -26,8 +26,8 @@ on:
         type: string
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: euro-office/documentserver
+  REGISTRY: ghcr.io/euro-office
+  IMAGE_NAME: documentserver
   PRODUCT_VERSION: 9.2.1
   BUILD_ROOT: /package
 
@@ -144,7 +144,7 @@ jobs:
           workdir: ./build
           files: ./docker-bake.hcl
           targets: documentserver
-          push: ${{ steps.meta.outputs.push }}
+          push: ${{ steps.vars.outputs.push == 'true' }}
           set: |
             core.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache
             core.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache,mode=max
@@ -168,7 +168,7 @@ jobs:
             documentserver.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache,mode=max
             documentserver.tags=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
         env:
-          REGISTRY: ghcr.io/euro-office
+          REGISTRY: ${{ env.REGISTRY }}
           TAG: ${{ steps.meta.outputs.tag }}
           PRODUCT_VERSION: ${{ env.PRODUCT_VERSION }}
           BUILD_ROOT: ${{ env.BUILD_ROOT }}
@@ -224,7 +224,7 @@ jobs:
           workdir: ./build
           files: ./docker-bake.hcl
           targets: develop
-          push: ${{ steps.meta.outputs.push }}
+          push: ${{ steps.vars.outputs.push == 'true' }}
           set: |
             core.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache
             core.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache,mode=max
@@ -251,7 +251,7 @@ jobs:
             develop.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-develop-buildcache,mode=max
             develop.tags=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-dev
         env:
-          REGISTRY: ghcr.io/euro-office
+          REGISTRY: ${{ env.REGISTRY }}
           TAG: latest-dev
           PRODUCT_VERSION: ${{ env.PRODUCT_VERSION }}
           BUILD_ROOT: ${{ env.BUILD_ROOT }}
@@ -319,7 +319,7 @@ jobs:
             packages.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-packages-buildcache,mode=max
             packages.tags=
         env:
-          REGISTRY: ghcr.io/euro-office
+          REGISTRY: ${{ env.REGISTRY }}
           TAG: latest
           PRODUCT_VERSION: ${{ env.PRODUCT_VERSION }}
           BUILD_ROOT: ${{ env.BUILD_ROOT }}
