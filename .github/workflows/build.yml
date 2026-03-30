@@ -141,7 +141,8 @@ jobs:
       - name: Build (and conditionally push) documentserver
         uses: docker/bake-action@v5
         with:
-          files: ./build/docker-bake.hcl
+          workdir: ./build
+          files: ./docker-bake.hcl
           targets: documentserver
           push: ${{ steps.meta.outputs.push }}
           set: |
@@ -220,7 +221,8 @@ jobs:
       - name: Build (and conditionally push) develop
         uses: docker/bake-action@v5
         with:
-          files: ./build/docker-bake.hcl
+          workdir: ./build
+          files: ./docker-bake.hcl
           targets: develop
           push: ${{ steps.meta.outputs.push }}
           set: |
@@ -292,7 +294,8 @@ jobs:
       - name: Build packages (.deb and .rpm)
         uses: docker/bake-action@v5
         with:
-          files: ./build/docker-bake.hcl
+          workdir: ./build
+          files: ./docker-bake.hcl
           targets: packages
           push: false
           set: |
