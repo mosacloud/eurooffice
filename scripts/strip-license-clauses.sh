@@ -5,10 +5,11 @@
 # Removes the Section 7(b) logo/trademark clause and the contact address
 # block from license headers, using exact literal string replacement.
 #
-# Handles three comment styles:
+# Handles four comment styles:
 #   1. " * " prefix (most C-style comments)
 #   2. "* "  prefix (no leading space, a few files)
 #   3. " "   prefix (HTML comments)
+#   4. "// * " prefix (commented-out block comments, rare)
 #
 # And two address variants:
 #   - 20A-6  Ernesta Birznieka-Upish
@@ -153,12 +154,6 @@ xargs -0 -r -n 200 perl -pi -0777 -e '
     # Style 2: "* " prefix — logo/trademark
     s/\Q* Pursuant to Section 7(b) of the License you must retain the original Product\E\n\Q* logo when distributing the program. Pursuant to Section 7(e) we decline to\E\n\Q* grant you any rights under trademark law for use of our trademarks.\E\n\Q*\E\n//g;
 
-    # Style 4: "// * " prefix — commented-out block comments (rare, 2 files)
-    # Uses {} delimiters instead of // to avoid clash with the // in the pattern.
-    s{\Q// * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish\E\n\Q// * street, Riga, Latvia, EU, LV-1050.\E\n\Q// *\E\n}{}g;
-    s{\Q// * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha\E\n\Q// * street, Riga, Latvia, EU, LV-1050.\E\n\Q// *\E\n}{}g;
-    s{\Q// * Pursuant to Section 7(b) of the License you must retain the original Product\E\n\Q// * logo when distributing the program. Pursuant to Section 7(e) we decline to\E\n\Q// * grant you any rights under trademark law for use of our trademarks.\E\n\Q// *\E\n}{}g;
-
     # Style 3: HTML " " prefix — address variant A
     # In HTML comments, blank separator lines are " " (single space), not "* "
     s/\Q You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish\E\n\Q street, Riga, Latvia, EU, LV-1050.\E\n\Q \E\n//g;
@@ -168,6 +163,12 @@ xargs -0 -r -n 200 perl -pi -0777 -e '
 
     # Style 3: HTML " " prefix — logo/trademark
     s/\Q Pursuant to Section 7(b) of the License you must retain the original Product\E\n\Q logo when distributing the program. Pursuant to Section 7(e) we decline to\E\n\Q grant you any rights under trademark law for use of our trademarks.\E\n\Q \E\n//g;
+
+    # Style 4: "// * " prefix — commented-out block comments (rare, 2 files)
+    # Uses {} delimiters instead of // to avoid clash with the // in the pattern.
+    s{\Q// * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish\E\n\Q// * street, Riga, Latvia, EU, LV-1050.\E\n\Q// *\E\n}{}g;
+    s{\Q// * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha\E\n\Q// * street, Riga, Latvia, EU, LV-1050.\E\n\Q// *\E\n}{}g;
+    s{\Q// * Pursuant to Section 7(b) of the License you must retain the original Product\E\n\Q// * logo when distributing the program. Pursuant to Section 7(e) we decline to\E\n\Q// * grant you any rights under trademark law for use of our trademarks.\E\n\Q// *\E\n}{}g;
 
     # Restore \r\n if the file originally had Windows line endings.
     s/\n/\r\n/g if $had_cr;
