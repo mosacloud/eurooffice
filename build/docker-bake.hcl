@@ -154,11 +154,6 @@ target "develop" {
   tags       = ["${REGISTRY}/documentserver:${TAG}-dev"]
   contexts = {
     finalubuntu    = "target:documentserver"
-    core           = "target:core"
-    server         = "target:server"
-    sdkjs          = "target:sdkjs"
-    web-apps       = "target:web-apps"
-    example        = "target:example"
   }
   cache-from = ["type=local,src=/tmp/${REGISTRY}/develop"]
   cache-to   = ["type=local,dest=/tmp/${REGISTRY}/develop,mode=max"]
@@ -176,12 +171,6 @@ target "packages" {
   tags       = ["${REGISTRY}/packages:${TAG}"]
   contexts = {
     finalubuntu     = "target:documentserver"
-    develop         = "target:develop"
-    core            = "target:core"
-    server          = "target:server"
-    sdkjs           = "target:sdkjs"
-    web-apps        = "target:web-apps"
-    example         = "target:example"
   }
 
   # Export the filesystem directly to a local directory instead of an image
