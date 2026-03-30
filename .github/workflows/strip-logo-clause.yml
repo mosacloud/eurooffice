@@ -14,7 +14,7 @@ on:
           - sdkjs
           - core
           - server
-          - fork
+          - DocumentServer
       auto-merge:
         description: 'Trigger auto bot merge'
         required: false
@@ -25,15 +25,15 @@ jobs:
   prepare:
     runs-on: self-hosted
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      repos: ${{ steps.set-matrix.outputs.repos }}
     steps:
       - name: Build matrix
         id: set-matrix
         run: |
           if [ "${{ inputs.project }}" = "all" ]; then
-            echo 'matrix=["web-apps","sdkjs","core","server","fork"]' >> "$GITHUB_OUTPUT"
+            echo 'repos=["web-apps","sdkjs","core","server","DocumentServer"]' >> "$GITHUB_OUTPUT"
           else
-            echo 'matrix=["${{ inputs.project }}"]' >> "$GITHUB_OUTPUT"
+            echo 'repos=["${{ inputs.project }}"]' >> "$GITHUB_OUTPUT"
           fi
 
   strip:
@@ -42,7 +42,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        repo: ${{ fromJson(needs.prepare.outputs.matrix) }}
+        repo: ${{ fromJson(needs.prepare.outputs.repos) }}
 
     env:
       PATTERN: "Pursuant to Section 7(b)"
@@ -60,7 +60,7 @@ jobs:
           mkdir -p /tmp/templates
           for f in strip-logo-clause-commit.txt strip-logo-clause-pr-body.txt strip-license-clauses.sh; do
             curl -sfH "Authorization: token $GH_TOKEN" \
-              "https://raw.githubusercontent.com/Euro-Office/fork/main/scripts/$f" \
+              "https://raw.githubusercontent.com/Euro-Office/DocumentServer/main/scripts/$f" \
               -o "/tmp/templates/$f"
           done
           chmod +x /tmp/templates/strip-license-clauses.sh
@@ -88,11 +88,12 @@ jobs:
           fi
 
       - name: Strip clause
+        id: strip
         if: steps.check.outputs.count != '0'
         run: /tmp/templates/strip-license-clauses.sh . ${{ matrix.repo }}
 
       - name: Create branch and commit
-        if: steps.check.outputs.count != '0'
+        if: steps.check.outputs.count != '0' && steps.strip.outcome == 'success'
         id: commit
         run: |
           git checkout -b "$BRANCH_NAME"
@@ -106,7 +107,7 @@ jobs:
           git push origin "$BRANCH_NAME"
 
       - name: Create pull request
-        if: steps.check.outputs.count != '0' && steps.commit.outputs.has_changes == 'true'
+        if: steps.strip.outcome == 'success' && steps.commit.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.EURO_OFFICE_MIRROR_TOKEN }}
         run: |

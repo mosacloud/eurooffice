@@ -15,7 +15,7 @@
 #   - 20A-12 Ernesta Birznieka-Upisha
 #
 # Pass repo name as second argument to apply repo-specific excludes.
-# When repo is "fork", submodule directories (web-apps, sdkjs, core, server)
+# When repo is "DocumentServer", submodule directories (web-apps, sdkjs, core, server)
 # are excluded so you can run them individually.
 #
 # How it works:
@@ -50,9 +50,9 @@ EXCLUDES=(
     '*/deploy/*'              # built/bundled output, not source
 )
 
-# When run from the fork umbrella repo, skip the submodule directories
+# When run from the DocumentServer umbrella repo, skip the submodule directories
 # so each can be processed individually with its own commit.
-if [[ "$REPO" == "fork" ]]; then
+if [[ "$REPO" == "DocumentServer" ]]; then
     EXCLUDES+=(
         '*/web-apps/*'
         '*/sdkjs/*'
