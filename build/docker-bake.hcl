@@ -68,7 +68,7 @@ target "_common" {
 
 target "core" {
   inherits   = ["_common"]
-  context    = "."
+  context    = ".."
   dockerfile = "./core/.docker/core.bake.Dockerfile"
   target     = "core"
   tags       = ["${REGISTRY}/core:${TAG}"]
@@ -78,7 +78,7 @@ target "core" {
 
 target "core-wasm" {
   inherits   = ["_common"]
-  context    = "."
+  context    = ".."
   dockerfile = "./core/.docker/core-wasm.bake.Dockerfile"
   tags       = ["${REGISTRY}/core-wasm:${TAG}"]
   cache-from = ["type=local,src=/tmp/${REGISTRY}/core-wasm"]
@@ -87,7 +87,7 @@ target "core-wasm" {
 
 target "sdkjs" {
   inherits   = ["_common"]
-  context    = "."
+  context    = ".."
   dockerfile = "./sdkjs/.docker/sdkjs.bake.Dockerfile"
   tags       = ["${REGISTRY}/sdkjs:${TAG}"]
   target     = "sdkjs"
@@ -100,7 +100,7 @@ target "sdkjs" {
 
 target "web-apps" {
   inherits   = ["_common"]
-  context    = "."
+  context    = ".."
   dockerfile = "./web-apps/.docker/web-apps.bake.Dockerfile"
   tags       = ["${REGISTRY}/web-apps:${TAG}"]
   cache-from = ["type=local,src=/tmp/${REGISTRY}/web-apps"]
@@ -109,7 +109,7 @@ target "web-apps" {
 
 target "server" {
   inherits   = ["_common"]
-  context    = "."
+  context    = ".."
   dockerfile = "./server/.docker/server.bake.Dockerfile"
   tags       = ["${REGISTRY}/server:${TAG}"]
   cache-from = ["type=local,src=/tmp/${REGISTRY}/server"]
@@ -118,7 +118,7 @@ target "server" {
 
 target "example" {
   inherits   = ["_common"]
-  context    = "."
+  context    = ".."
   dockerfile = "./document-server-integration/.docker/example.bake.Dockerfile"
   tags       = ["${REGISTRY}/example:${TAG}"]
   cache-from = ["type=local,src=/tmp/${REGISTRY}/example"]
@@ -131,8 +131,8 @@ target "example" {
 
 target "documentserver" {
   inherits   = ["_common"]
-  context    = "."
-  dockerfile = "./build/docserver.bake.Dockerfile"
+  context    = ".."
+  dockerfile = "./build/.docker/docserver.bake.Dockerfile"
   target     = "finalubuntu"
   tags       = ["${REGISTRY}/documentserver:${TAG}"]
   contexts = {
@@ -148,8 +148,8 @@ target "documentserver" {
 
 target "develop" {
   inherits   = ["_common"]
-  context    = "."
-  dockerfile = "./build/develop.bake.Dockerfile"
+  context    = ".."
+  dockerfile = "./build/.docker/develop.bake.Dockerfile"
   target     = "develop"
   tags       = ["${REGISTRY}/documentserver:${TAG}-dev"]
   contexts = {
@@ -170,8 +170,8 @@ target "develop" {
 
 target "packages" {
   inherits   = ["_common"]
-  context    = "."
-  dockerfile = "./build/packages.bake.Dockerfile"
+  context    = ".."
+  dockerfile = "./build/.docker/packages.bake.Dockerfile"
   target     = "packages"       # points to the FROM scratch stage
   tags       = ["${REGISTRY}/packages:${TAG}"]
   contexts = {
@@ -185,7 +185,7 @@ target "packages" {
   }
 
   # Export the filesystem directly to a local directory instead of an image
-  output = ["type=local,dest=./dist/packages"]
+  output = ["type=local,dest=./deploy/packages"]
 
   cache-from = ["type=local,src=/tmp/${REGISTRY}/packages"]  # reuses builder cache
 }
