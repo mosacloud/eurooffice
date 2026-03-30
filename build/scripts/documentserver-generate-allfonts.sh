@@ -77,10 +77,10 @@ rm -f \
 
 #Restart web-site and converter
 if [ "$ONLYOFFICE_DATA_CONTAINER" != "true" ]; then
-  if pgrep -x ""systemd"" >/dev/null; then
+  if pgrep -x "systemd" >/dev/null; then
     systemctl restart ds-docservice
     systemctl restart ds-converter
-  elif pgrep -x ""supervisord"" >/dev/null; then
+  elif pgrep -x "supervisord" >/dev/null; then
     supervisorctl restart ds:docservice
     supervisorctl restart ds:converter
   fi
