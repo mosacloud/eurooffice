@@ -144,7 +144,7 @@ jobs:
           workdir: ./build
           files: ./docker-bake.hcl
           targets: documentserver
-          push: ${{ steps.vars.outputs.push == 'true' }}
+          push: ${{ steps.meta.outputs.push == 'true' }}
           set: |
             core.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache
             core.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache,mode=max
@@ -224,7 +224,7 @@ jobs:
           workdir: ./build
           files: ./docker-bake.hcl
           targets: develop
-          push: ${{ steps.vars.outputs.push == 'true' }}
+          push: ${{ steps.meta.outputs.push == 'true' }}
           set: |
             core.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache
             core.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache,mode=max
