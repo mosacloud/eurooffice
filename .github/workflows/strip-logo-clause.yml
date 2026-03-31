@@ -12,6 +12,7 @@ on:
           - all
           - web-apps
           - sdkjs
+          - sdkjs-forms
           - core
           - server
           - fork
@@ -31,7 +32,7 @@ jobs:
         id: set-matrix
         run: |
           if [ "${{ inputs.project }}" = "all" ]; then
-            echo 'matrix=["web-apps","sdkjs","core","server","fork"]' >> "$GITHUB_OUTPUT"
+            echo 'matrix=["web-apps","sdkjs","sdkjs-forms","core","server","fork"]' >> "$GITHUB_OUTPUT"
           else
             echo 'matrix=["${{ inputs.project }}"]' >> "$GITHUB_OUTPUT"
           fi
