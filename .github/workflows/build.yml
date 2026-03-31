@@ -140,7 +140,7 @@ jobs:
           fi
 
       - name: Build (and conditionally push) documentserver
-        uses: docker/bake-action@v5
+        uses: docker/bake-action@4a9a8d494466d37134e2bfca2d3a8de8fb2681ad # v5.13.0
         with:
           workdir: ./build
           files: ./docker-bake.hcl
@@ -220,7 +220,7 @@ jobs:
           fi
 
       - name: Build (and conditionally push) develop
-        uses: docker/bake-action@v5
+        uses: docker/bake-action@4a9a8d494466d37134e2bfca2d3a8de8fb2681ad # v5.13.0
         with:
           workdir: ./build
           files: ./docker-bake.hcl
@@ -293,7 +293,7 @@ jobs:
   #      run: echo "ref_name=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> $GITHUB_OUTPUT
 
   #    - name: Build packages (.deb and .rpm)
-  #      uses: docker/bake-action@v5
+  #      uses: docker/bake-action@4a9a8d494466d37134e2bfca2d3a8de8fb2681ad # v5.13.0
   #      with:
   #        workdir: ./build
   #        files: ./docker-bake.hcl
