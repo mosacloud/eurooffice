@@ -265,71 +265,71 @@ jobs:
   # only the packages export stage executes fresh.
   #
   # ─────────────────────────────────────────────────────────────
-  build-packages:
-    runs-on: self-hosted
-    needs: build
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Restore cache
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: "${{ github.workspace }}"
-          key: ${{ runner.os }}-build-${{ github.sha }}
+  #build-packages:
+  #  runs-on: self-hosted
+  #  needs: build
+  #  permissions:
+  #    contents: read
+  #    packages: write
+  #  steps:
+  #    - name: Restore cache
+  #      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+  #      with:
+  #        path: "${{ github.workspace }}"
+  #        key: ${{ runner.os }}-build-${{ github.sha }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+  #    - name: Set up Docker Buildx
+  #      uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+  #    - name: Log in to GitHub Container Registry
+  #      uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+  #      with:
+  #        registry: ${{ env.REGISTRY }}
+  #        username: ${{ github.actor }}
+  #        password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Compute ref name
-        id: meta
-        run: echo "ref_name=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> $GITHUB_OUTPUT
+  #    - name: Compute ref name
+  #      id: meta
+  #      run: echo "ref_name=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> $GITHUB_OUTPUT
 
-      - name: Build packages (.deb and .rpm)
-        uses: docker/bake-action@v5
-        with:
-          workdir: ./build
-          files: ./docker-bake.hcl
-          targets: packages
-          push: false
-          set: |
-            core.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache
-            core.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache,mode=max
-            core.tags=
-            core-wasm.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache
-            core-wasm.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache,mode=max
-            core-wasm.tags=
-            sdkjs.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache
-            sdkjs.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache,mode=max
-            sdkjs.tags=
-            web-apps.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache
-            web-apps.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache,mode=max
-            web-apps.tags=
-            server.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache
-            server.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache,mode=max
-            server.tags=
-            example.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache
-            example.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache,mode=max
-            example.tags=
-            documentserver.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache
-            documentserver.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache,mode=max
-            documentserver.tags=
-            packages.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-packages-buildcache
-            packages.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-packages-buildcache,mode=max
-            packages.tags=
-        env:
-          REGISTRY: ${{ env.REGISTRY }}
-          TAG: latest
-          PRODUCT_VERSION: ${{ env.PRODUCT_VERSION }}
-          BUILD_ROOT: ${{ env.BUILD_ROOT }}
-          NUGET_CACHE: local
+  #    - name: Build packages (.deb and .rpm)
+  #      uses: docker/bake-action@v5
+  #      with:
+  #        workdir: ./build
+  #        files: ./docker-bake.hcl
+  #        targets: packages
+  #        push: false
+  #        set: |
+  #          core.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache
+  #          core.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache,mode=max
+  #          core.tags=
+  #          core-wasm.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache
+  #          core-wasm.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache,mode=max
+  #          core-wasm.tags=
+  #          sdkjs.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache
+  #          sdkjs.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache,mode=max
+  #          sdkjs.tags=
+  #          web-apps.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache
+  #          web-apps.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache,mode=max
+  #          web-apps.tags=
+  #          server.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache
+  #          server.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache,mode=max
+  #          server.tags=
+  #          example.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache
+  #          example.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache,mode=max
+  #          example.tags=
+  #          documentserver.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache
+  #          documentserver.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache,mode=max
+  #          documentserver.tags=
+  #          packages.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-packages-buildcache
+  #          packages.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-packages-buildcache,mode=max
+  #          packages.tags=
+  #      env:
+  #        REGISTRY: ${{ env.REGISTRY }}
+  #        TAG: latest
+  #        PRODUCT_VERSION: ${{ env.PRODUCT_VERSION }}
+  #        BUILD_ROOT: ${{ env.BUILD_ROOT }}
+  #        NUGET_CACHE: local
 
       #- name: Upload packages as artifact
       #  uses: actions/upload-artifact@v4
