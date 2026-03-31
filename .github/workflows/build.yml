@@ -34,7 +34,7 @@ env:
 
 jobs:
   clone:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout fork repository (with submodules)
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -98,13 +98,23 @@ jobs:
   #
   # Intermediate target tags are cleared via `set` so that only the
   # final documentserver image is pushed to GHCR when push=true.
+  #
+  # Each architecture is built on a native runner (amd64 → ubuntu-latest,
+  # arm64 → ubuntu-24.04-arm) and tagged with an arch suffix.
+  # The manifest job below merges them into a single multi-arch image.
   # ─────────────────────────────────────────────────────────────
   build:
-    runs-on: self-hosted
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     needs: clone
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - amd64
+          - arm64
     steps:
       - name: Restore cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -147,33 +157,88 @@ jobs:
           targets: documentserver
           push: ${{ steps.meta.outputs.push == 'true' }}
           set: |
-            core.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache
-            core.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache,mode=max
+            core.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache-${{ matrix.arch }}
+            core.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache-${{ matrix.arch }},mode=max
             core.tags=
-            core-wasm.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache
-            core-wasm.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache,mode=max
+            core-wasm.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache-${{ matrix.arch }}
+            core-wasm.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache-${{ matrix.arch }},mode=max
             core-wasm.tags=
-            sdkjs.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache
-            sdkjs.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache,mode=max
+            sdkjs.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache-${{ matrix.arch }}
+            sdkjs.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache-${{ matrix.arch }},mode=max
             sdkjs.tags=
-            web-apps.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache
-            web-apps.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache,mode=max
+            web-apps.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache-${{ matrix.arch }}
+            web-apps.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache-${{ matrix.arch }},mode=max
             web-apps.tags=
-            server.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache
-            server.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache,mode=max
+            server.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache-${{ matrix.arch }}
+            server.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache-${{ matrix.arch }},mode=max
             server.tags=
-            example.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache
-            example.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache,mode=max
+            example.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache-${{ matrix.arch }}
+            example.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache-${{ matrix.arch }},mode=max
             example.tags=
-            documentserver.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache
-            documentserver.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache,mode=max
-            documentserver.tags=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
+            documentserver.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache-${{ matrix.arch }}
+            documentserver.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache-${{ matrix.arch }},mode=max
+            documentserver.tags=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}-${{ matrix.arch }}
         env:
           REGISTRY: ${{ env.REGISTRY }}
-          TAG: ${{ steps.meta.outputs.tag }}
+          TAG: ${{ steps.meta.outputs.tag }}-${{ matrix.arch }}
           PRODUCT_VERSION: ${{ env.PRODUCT_VERSION }}
           BUILD_ROOT: ${{ env.BUILD_ROOT }}
           NUGET_CACHE: local
+
+  # ─────────────────────────────────────────────────────────────
+  # MANIFEST
+  #
+  # Combines the arch-specific documentserver images built above
+  # into a single multi-arch manifest. Only runs when images were
+  # actually pushed (default branch → :nightly, git tags → :latest
+  # and the sanitised ref tag).
+  # ─────────────────────────────────────────────────────────────
+  manifest:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Compute safe ref name
+        id: ref
+        run: echo "name=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push multi-arch manifest
+        run: |
+          REF="${{ steps.ref.outputs.name }}"
+          REPO="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+
+          create_manifest() {
+            local tag="$1"
+            docker buildx imagetools create \
+              -t "${REPO}:${tag}" \
+              "${REPO}:${tag}-amd64" \
+              "${REPO}:${tag}-arm64"
+          }
+
+          # Push :nightly on the default branch
+          if [[ "${{ github.ref_name }}" == "${{ github.event.repository.default_branch }}" ]]; then
+            create_manifest "nightly"
+          fi
+
+          # Push :latest and the sanitised ref tag on git tags
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            create_manifest "latest"
+            create_manifest "${REF}"
+          fi
 
   # ─────────────────────────────────────────────────────────────
   # BUILD-DEVELOP
@@ -186,11 +251,17 @@ jobs:
   # or feature branches).
   # ─────────────────────────────────────────────────────────────
   build-develop:
-    runs-on: self-hosted
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     needs: build
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - amd64
+          - arm64
     steps:
       - name: Restore cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -227,36 +298,127 @@ jobs:
           targets: develop
           push: ${{ steps.meta.outputs.push == 'true' }}
           set: |
-            core.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache
-            core.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache,mode=max
+            core.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache-${{ matrix.arch }}
+            core.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache-${{ matrix.arch }},mode=max
             core.tags=
-            core-wasm.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache
-            core-wasm.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache,mode=max
+            core-wasm.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache-${{ matrix.arch }}
+            core-wasm.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache-${{ matrix.arch }},mode=max
             core-wasm.tags=
-            sdkjs.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache
-            sdkjs.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache,mode=max
+            sdkjs.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache-${{ matrix.arch }}
+            sdkjs.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache-${{ matrix.arch }},mode=max
             sdkjs.tags=
-            web-apps.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache
-            web-apps.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache,mode=max
+            web-apps.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache-${{ matrix.arch }}
+            web-apps.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache-${{ matrix.arch }},mode=max
             web-apps.tags=
-            server.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache
-            server.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache,mode=max
+            server.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache-${{ matrix.arch }}
+            server.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache-${{ matrix.arch }},mode=max
             server.tags=
-            example.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache
-            example.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache,mode=max
+            example.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache-${{ matrix.arch }}
+            example.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache-${{ matrix.arch }},mode=max
             example.tags=
-            documentserver.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache
-            documentserver.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache,mode=max
+            documentserver.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache-${{ matrix.arch }}
+            documentserver.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache-${{ matrix.arch }},mode=max
             documentserver.tags=
-            develop.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-develop-buildcache
-            develop.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-develop-buildcache,mode=max
-            develop.tags=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-dev
+            develop.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-develop-buildcache-${{ matrix.arch }}
+            develop.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-develop-buildcache-${{ matrix.arch }},mode=max
+            develop.tags=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-dev-${{ matrix.arch }}
         env:
           REGISTRY: ${{ env.REGISTRY }}
-          TAG: latest-dev
+          TAG: latest-dev-${{ matrix.arch }}
           PRODUCT_VERSION: ${{ env.PRODUCT_VERSION }}
           BUILD_ROOT: ${{ env.BUILD_ROOT }}
           NUGET_CACHE: local
+
+  # ─────────────────────────────────────────────────────────────
+  # MANIFEST-DEVELOP
+  #
+  # Combines the arch-specific develop images into a single
+  # multi-arch manifest. Only runs on the default branch.
+  # ─────────────────────────────────────────────────────────────
+  manifest-develop:
+    runs-on: ubuntu-latest
+    needs: build-develop
+    if: github.ref_name == github.event.repository.default_branch
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push multi-arch dev manifest
+        run: |
+          REPO="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          docker buildx imagetools create \
+            -t "${REPO}:latest-dev" \
+            "${REPO}:latest-dev-amd64" \
+            "${REPO}:latest-dev-arm64"
+
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: manifest
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Restore cache
+        uses: actions/cache/restore@v4
+        with:
+          path: "${{ github.workspace }}"
+          key: ${{ runner.os }}-build-${{ github.sha }}
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute safe ref name
+        id: ref
+        run: echo "name=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> $GITHUB_OUTPUT
+
+      - name: Pull built image
+        run: docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install dependencies
+        working-directory: e2e
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: e2e
+        run: npx playwright install chromium --with-deps
+
+      - name: Run E2E tests
+        working-directory: e2e
+        env:
+          E2E_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.name }}
+        run: npm test
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: e2e/playwright-report/
+          retention-days: 14
 
   # ─────────────────────────────────────────────────────────────
   # BUILD-PACKAGES
@@ -264,72 +426,73 @@ jobs:
   # All transitive deps are registry-cache hits at this point;
   # only the packages export stage executes fresh.
   #
+  # Packages are AMD64-only (no ARM package builds).
   # ─────────────────────────────────────────────────────────────
-  #build-packages:
-  #  runs-on: self-hosted
-  #  needs: build
-  #  permissions:
-  #    contents: read
-  #    packages: write
-  #  steps:
-  #    - name: Restore cache
-  #      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-  #      with:
-  #        path: "${{ github.workspace }}"
-  #        key: ${{ runner.os }}-build-${{ github.sha }}
+  build-packages:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Restore cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: "${{ github.workspace }}"
+          key: ${{ runner.os }}-build-${{ github.sha }}
 
-  #    - name: Set up Docker Buildx
-  #      uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
-  #    - name: Log in to GitHub Container Registry
-  #      uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
-  #      with:
-  #        registry: ${{ env.REGISTRY }}
-  #        username: ${{ github.actor }}
-  #        password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-  #    - name: Compute ref name
-  #      id: meta
-  #      run: echo "ref_name=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> $GITHUB_OUTPUT
+      - name: Compute ref name
+        id: meta
+        run: echo "ref_name=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> $GITHUB_OUTPUT
 
-  #    - name: Build packages (.deb and .rpm)
-  #      uses: docker/bake-action@4a9a8d494466d37134e2bfca2d3a8de8fb2681ad # v5.13.0
-  #      with:
-  #        workdir: ./build
-  #        files: ./docker-bake.hcl
-  #        targets: packages
-  #        push: false
-  #        set: |
-  #          core.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache
-  #          core.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache,mode=max
-  #          core.tags=
-  #          core-wasm.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache
-  #          core-wasm.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache,mode=max
-  #          core-wasm.tags=
-  #          sdkjs.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache
-  #          sdkjs.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache,mode=max
-  #          sdkjs.tags=
-  #          web-apps.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache
-  #          web-apps.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache,mode=max
-  #          web-apps.tags=
-  #          server.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache
-  #          server.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache,mode=max
-  #          server.tags=
-  #          example.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache
-  #          example.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache,mode=max
-  #          example.tags=
-  #          documentserver.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache
-  #          documentserver.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache,mode=max
-  #          documentserver.tags=
-  #          packages.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-packages-buildcache
-  #          packages.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-packages-buildcache,mode=max
-  #          packages.tags=
-  #      env:
-  #        REGISTRY: ${{ env.REGISTRY }}
-  #        TAG: latest
-  #        PRODUCT_VERSION: ${{ env.PRODUCT_VERSION }}
-  #        BUILD_ROOT: ${{ env.BUILD_ROOT }}
-  #        NUGET_CACHE: local
+      - name: Build packages (.deb and .rpm)
+        uses: docker/bake-action@4a9a8d494466d37134e2bfca2d3a8de8fb2681ad # v5.13.0
+        with:
+          workdir: ./build
+          files: ./docker-bake.hcl
+          targets: packages
+          push: false
+          set: |
+            core.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache-amd64
+            core.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache-amd64,mode=max
+            core.tags=
+            core-wasm.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache-amd64
+            core-wasm.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache-amd64,mode=max
+            core-wasm.tags=
+            sdkjs.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache-amd64
+            sdkjs.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache-amd64,mode=max
+            sdkjs.tags=
+            web-apps.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache-amd64
+            web-apps.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache-amd64,mode=max
+            web-apps.tags=
+            server.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache-amd64
+            server.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache-amd64,mode=max
+            server.tags=
+            example.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache-amd64
+            example.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache-amd64,mode=max
+            example.tags=
+            documentserver.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache-amd64
+            documentserver.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-documentserver-buildcache-amd64,mode=max
+            documentserver.tags=
+            packages.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-packages-buildcache-amd64
+            packages.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-packages-buildcache-amd64,mode=max
+            packages.tags=
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          TAG: latest
+          PRODUCT_VERSION: ${{ env.PRODUCT_VERSION }}
+          BUILD_ROOT: ${{ env.BUILD_ROOT }}
+          NUGET_CACHE: local
 
       #- name: Upload packages as artifact
       #  uses: actions/upload-artifact@v4
