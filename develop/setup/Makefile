@@ -48,6 +48,8 @@ endif
 
 web-apps:
 	@echo "Building web-apps with flags $(CFLAGS)"
+	cd $(EO_DEV)/web-apps/translation && \
+	python3 merge_and_check.py && \
 	cd $(EO_DEV)/web-apps/build && \
 	npm ci && \
 	BUILD_ROOT=$(EO_ROOT) grunt $(SKIP_IMAGEMIN) $(CFLAGS)
@@ -55,6 +57,8 @@ web-apps:
 
 web-apps-dev:
 	$(CHECK_WEBAPPS_DEPS)
+	cd $(EO_DEV)/web-apps/translation && \
+	python3 merge_and_check.py && \
 	cd $(EO_DEV)/web-apps/build && \
 	BUILD_ROOT=$(EO_ROOT) grunt $(SKIP_IMAGEMIN) --skip-babel $(CFLAGS)
 	$(FLUSH_CACHE)
