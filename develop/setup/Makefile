@@ -72,6 +72,7 @@ sdkjs:
 	cd $(EO_DEV)/sdkjs/build && \
 	npm install && \
 	CC_PLATFORM=$(CC_PLATFORM) BUILD_ROOT=$(EO_ROOT) grunt $(SDKJS_OPTS) $(CFLAGS) develop && \
+	cp $(EO_DEV)/sdkjs/common/device_scale.js $(EO_ROOT)/sdkjs/common/device_scale.js && \
 	/usr/bin/documentserver-generate-allfonts.sh
 
 ## -----------------
