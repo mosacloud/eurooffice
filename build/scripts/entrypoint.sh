@@ -88,4 +88,22 @@ enable_supervisor_program() {
 [ "${ADMINPANEL_ENABLED:-false}" = "true" ] && enable_supervisor_program ds-adminpanel
 [ "${EXAMPLE_ENABLED:-false}" = "true" ]    && enable_supervisor_program ds-example
 
+# Update example app config with JWT settings
+EXAMPLE_CONF_DIR="/etc/onlyoffice/documentserver-example"
+EXAMPLE_LOCAL="${EXAMPLE_CONF_DIR}/local.json"
+if [ "${EXAMPLE_ENABLED:-false}" = "true" ] && [ -n "$JWT_SECRET" ]; then
+  jq -n \
+    --arg secret "$JWT_SECRET" \
+    --arg header "${JWT_HEADER:-Authorization}" \
+    '{
+      "server": {
+        "token": {
+          "enable": true,
+          "secret": $secret,
+          "authorizationHeader": $header
+        }
+      }
+    }' > "$EXAMPLE_LOCAL"
+fi
+
 /usr/bin/supervisord
