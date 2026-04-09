@@ -109,3 +109,24 @@ make vagrant-ssh VM=ubuntu2404
 # Destroy all VMs
 make vagrant-destroy
 ```
+
+## Tagging a release
+
+The `scripts/tag_release.sh` script creates semver pre-release tags
+(`vX.Y.Z-ID.BUILD`) on the main repo and all submodules. The version is read
+from the `VERSION` file at the repo root.
+
+```sh
+# Auto-increment: finds the last -tp.N tag and bumps to N+1
+../scripts/tag_release.sh --dry-run
+../scripts/tag_release.sh
+
+# Explicit build number
+../scripts/tag_release.sh -b 5
+
+# Custom pre-release identifier (default: tp)
+../scripts/tag_release.sh -p rc        # → v9.3.1-rc.1
+
+# Create and push tags to remotes
+../scripts/tag_release.sh --push
+```
