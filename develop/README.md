@@ -24,6 +24,26 @@ The docker compose environment in this directory allows to run document server b
         - Secret key: `secret`
     - Navigate to Files `http://localhost:8081/apps/files/`, create a document, and try to open it
 
+#### Testing from mobile devices and emulators
+
+`make local` auto-detects the host's LAN IP (`HOST_LAN_IP`) so phones, tablets, and simulators/emulators can reach the editor — `localhost` only works from the desktop itself.
+
+- **iOS simulator & desktop browser**: reach Nextcloud at `http://localhost:8081/` as usual.
+- **Android emulator**: log in at `http://10.0.2.2:8081/` (the emulator's alias for the host). Already trusted by the stack.
+- **Physical device on the same LAN**: log in at `http://<HOST_LAN_IP>:8081/`. `HOST_LAN_IP` is appended to Nextcloud's trusted domains automatically.
+
+Detection uses `ipconfig` on macOS and `ip route` on Linux. On native Windows — or any machine where detection fails — pass it explicitly:
+
+```sh
+make local HOST_LAN_IP=192.168.1.50
+```
+
+When your LAN IP changes (new wifi, tethering, etc.), update the running stack without a full rebuild:
+
+```sh
+make refresh-urls
+```
+
 #### Building changes:
 
 - Enter the container with `docker compose exec eo bash`
