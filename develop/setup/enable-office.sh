@@ -1,6 +1,6 @@
 #!/bin/bash
 
-php /var/www/html/occ config:system:set trusted_domains 1 --value=nextcloud
+php /var/www/html/occ config:system:set trusted_domains 2 --value=nextcloud
 
 echo "Waiting for Euro-Office document server to be ready..."
 until curl -sf http://eo/healthcheck > /dev/null 2>&1; do
