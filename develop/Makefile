@@ -14,8 +14,19 @@ HOST_LAN_IP ?= $(DETECTED_HOST_LAN_IP)
 export HOST_LAN_IP
 
 local:
-	@echo "Host LAN IP: $(or $(HOST_LAN_IP),<not detected>)"
-	@echo "If your network changes, run: make refresh-urls"
+	@echo ""
+	@echo "   ███████╗ ██████╗"
+	@echo "   ██╔════╝██╔═══██╗"
+	@echo "   █████╗  ██║   ██║"
+	@echo "   ██╔══╝  ██║   ██║"
+	@echo "   ███████╗╚██████╔╝"
+	@echo "   ╚══════╝ ╚═════╝"
+	@echo ""
+	@echo "   Euro-Office Development Environment"
+	@echo ""
+	@echo "   Host LAN IP:   $(or $(HOST_LAN_IP),<not detected>)"
+	@echo "   On IP change:  make refresh-urls"
+	@echo ""
 	docker compose up -d && docker compose exec eo bash
 
 pull:
