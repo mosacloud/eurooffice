@@ -14,9 +14,7 @@ This document defines how contributions should be made and reviewed.
 
 ## Coding guidelines
 
-Do we need them? What should they look like?
-
-Example:
+As the code base is large and diverse, hard rules are difficult. Generally, the approach should try to follow the 'local' coding practices, that is, new code should not look completely out-of-place from it's context. Beyond that, we would like to see these guidelines follwed as much as they don't conflict with the file being edited:
 
 * Maximum line-length of 80 characters
 * Use tabs to indent
@@ -24,6 +22,7 @@ Example:
 * End of Lines : Unix style (LF / '\\n') only
 * Code should be tested, ideally with unit and integration tests.
 * When you `git pull`, always `git pull --rebase` to avoid generating extra commits like: *merged main into main*
+* Commits are required to be signed
 
 ## Development process
 
