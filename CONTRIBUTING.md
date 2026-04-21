@@ -71,7 +71,7 @@ A PR should:
 
 ### Issues First
 
-- Every pull request must be linked to:
+- Every pull request must be (ideally) linked to:
   - A bug report, or
   - A feature request
 - For larger changes:
