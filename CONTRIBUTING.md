@@ -74,6 +74,7 @@ A PR should:
 - Every pull request must be (ideally) linked to:
   - A bug report, or
   - A feature request
+  - For really small changes an explanation in the PR is sufficient.
 - For larger changes:
   - Create an issue before starting implementation
   - Describe:
