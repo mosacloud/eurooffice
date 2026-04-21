@@ -16,7 +16,7 @@ This document defines how contributions should be made and reviewed.
 
 As the code base is large and diverse, hard rules are difficult. Generally, the approach should try to follow the 'local' coding practices, that is, new code should not look completely out-of-place from it's context. Beyond that, we would like to see these guidelines follwed as much as they don't conflict with the file being edited:
 
-* Maximum line-length of 80 characters
+* Maximum line-length of 120 characters
 * Use tabs to indent
 * A tab is 4 spaces wide
 * End of Lines : Unix style (LF / '\\n') only
