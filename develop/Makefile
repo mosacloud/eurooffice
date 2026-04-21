@@ -1,8 +1,8 @@
 PRODUCT_VERSION ?= $(shell cat ../VERSION)
 export PRODUCT_VERSION
 
-# Host LAN IP so phones/emulators/LAN devices can reach DocumentServer and
-# Nextcloud via the desktop's routable address rather than localhost.
+# Detect host LAN IP for phones/emulators/LAN devices. Used by `make mobile`
+# and `make refresh-urls`.
 ifeq ($(shell uname -s),Darwin)
 	DETECTED_HOST_LAN_IP := $(shell ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)
 else
@@ -10,7 +10,10 @@ else
 	# which local source IP it would use, without actually sending packets.
 	DETECTED_HOST_LAN_IP := $(shell ip route get 1.1.1.1 2>/dev/null | awk '{print $$7; exit}')
 endif
-HOST_LAN_IP ?= $(DETECTED_HOST_LAN_IP)
+
+# Empty by default: `make local` runs on localhost (desktop browser + iOS sim).
+# `make mobile` sets this so Android emulators and LAN-connected devices can reach the editor.
+HOST_LAN_IP ?=
 export HOST_LAN_IP
 
 local:
@@ -24,10 +27,23 @@ local:
 	@echo ""
 	@echo "   Euro-Office Development Environment"
 	@echo ""
-	@echo "   Host LAN IP:   $(or $(HOST_LAN_IP),<not detected>)"
+ifeq ($(HOST_LAN_IP),)
+	@echo "   Mode: localhost (desktop browser + iOS sim)"
+	@echo "   For Android / physical device testing: make mobile"
+else
+	@echo "   Mode: mobile / LAN"
+	@echo "   Host LAN IP:   $(HOST_LAN_IP)"
 	@echo "   On IP change:  make refresh-urls"
+endif
 	@echo ""
-	docker compose up -d && docker compose exec eo bash
+	docker compose up -d
+	@$(MAKE) --no-print-directory refresh-urls
+	docker compose exec eo bash
+
+# Like `make local`, but injects the detected HOST_LAN_IP so that Nextcloud
+# returns a DocumentServerUrl mobile/LAN clients can actually reach.
+mobile:
+	@HOST_LAN_IP="$(DETECTED_HOST_LAN_IP)" $(MAKE) local
 
 pull:
 	docker compose pull && docker compose up -d && docker compose exec eo bash
@@ -37,9 +53,28 @@ build:
 	(docker compose up -d) && \
 	(docker compose exec eo bash)
 
-# Re-point OnlyOffice URLs and trusted_domains at the current HOST_LAN_IP
-# without wiping the stack. Use after your LAN IP changes (new wifi, etc.).
+# Align OnlyOffice URLs and trusted_domains with the current mode.
+# - If HOST_LAN_IP is set: mobile/LAN mode (DocumentServerUrl = http://<ip>:8080/, trusted_domains[2] = <ip>).
+# - If HOST_LAN_IP is empty: localhost mode (DocumentServerUrl = http://localhost:8080/, trusted_domains[2] cleared).
+# Waits for Nextcloud + OnlyOffice to finish installing on first boot, then applies idempotently.
 refresh-urls:
-	@test -n "$(HOST_LAN_IP)" || { echo "HOST_LAN_IP could not be detected; pass it explicitly: make refresh-urls HOST_LAN_IP=1.2.3.4"; exit 1; }
-	docker compose exec -u www-data nextcloud ./occ config:app:set onlyoffice DocumentServerUrl --value="http://$(HOST_LAN_IP):8080/"
-	docker compose exec -u www-data nextcloud ./occ config:system:set trusted_domains 2 --value=$(HOST_LAN_IP)
+	@start=$$(date +%s); \
+	  while ! docker compose exec -T eo curl -sf http://localhost/healthcheck >/dev/null 2>&1; do \
+	    printf "\rWaiting for document server (%ds)   " $$(($$(date +%s) - start)); \
+	    sleep 2; \
+	  done; \
+	  printf "\rDocument server ready (%ds).          \n" $$(($$(date +%s) - start))
+	@start=$$(date +%s); \
+	  while ! docker compose exec -T -u www-data nextcloud ./occ config:app:get onlyoffice DocumentServerUrl 2>/dev/null | grep -q "http"; do \
+	    printf "\rWaiting for Nextcloud setup (%ds)   " $$(($$(date +%s) - start)); \
+	    sleep 2; \
+	  done; \
+	  printf "\rNextcloud setup ready (%ds).          \n" $$(($$(date +%s) - start))
+	@target="$${HOST_LAN_IP:-localhost}"; \
+	  echo "Setting DocumentServerUrl to http://$$target:8080/"; \
+	  docker compose exec -T -u www-data nextcloud ./occ config:app:set onlyoffice DocumentServerUrl --value="http://$$target:8080/" >/dev/null; \
+	  if [ "$$target" = "localhost" ]; then \
+	    docker compose exec -T -u www-data nextcloud ./occ config:system:delete trusted_domains 2 >/dev/null 2>&1 || true; \
+	  else \
+	    docker compose exec -T -u www-data nextcloud ./occ config:system:set trusted_domains 2 --value=$$target >/dev/null; \
+	  fi

@@ -31,9 +31,10 @@ services:
       - /var/www/html
       - ./setup/enable-office.sh:/docker-entrypoint-hooks.d/post-installation/enable-office.sh:ro
     environment:
-      # 10.0.2.2 = Android emulator's alias for host; HOST_LAN_IP = LAN devices / phones.
-      NEXTCLOUD_TRUSTED_DOMAINS: 10.0.2.2 ${HOST_LAN_IP:-}
-      HOST_LAN_IP: ${HOST_LAN_IP:-}
+      # 10.0.2.2 = Android emulator's alias for host. Mobile/LAN IPs are
+      # applied post-boot by `make refresh-urls` so the container env stays
+      # stable across mode switches (no recreation, no data loss).
+      NEXTCLOUD_TRUSTED_DOMAINS: 10.0.2.2
       SQLITE_DATABASE: nextcloud
       NEXTCLOUD_ADMIN_USER: admin
       NEXTCLOUD_ADMIN_PASSWORD: admin
