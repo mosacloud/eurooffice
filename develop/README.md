@@ -8,6 +8,7 @@ The docker compose environment in this directory allows to run document server b
   - `make` to use the image that is currently available locally
   - `make pull` to use the latest image from github
   - `make build` to build the image locally from scratch
+  - `make mobile` for Android emulator / physical LAN device testing (see below)
   
   You may need to generate a PAT first, as described in https://github.com/Euro-Office/DocumentServer/pkgs/container/documentserver
 - In docker-compose.yml, for the eo service, ensure that `target` is set to `develop`
@@ -23,6 +24,31 @@ The docker compose environment in this directory allows to run document server b
         - Docs address for internal requests from Nextcloud `http://eo/`
         - Secret key: `secret`
     - Navigate to Files `http://localhost:8081/apps/files/`, create a document, and try to open it
+
+#### Testing from mobile devices and emulators
+
+`make local` runs on `localhost` — enough for the desktop browser and iOS simulator. For Android emulators and physical devices on the LAN, use `make mobile` instead — it detects the host's LAN IP and injects it so the editor is reachable from off-desktop clients.
+
+| Client | Target | Nextcloud URL |
+|---|---|---|
+| Desktop browser | `make local` or `make mobile` | `http://localhost:8081/` |
+| iOS simulator | `make local` or `make mobile` | `http://localhost:8081/` |
+| Android emulator | `make mobile` | `http://10.0.2.2:8081/` |
+| Physical LAN device | `make mobile` | `http://<HOST_LAN_IP>:8081/` |
+
+IP detection uses `ipconfig` on macOS and `ip route` on Linux. On native Windows — or any machine where detection fails — pass it explicitly:
+
+```sh
+make mobile HOST_LAN_IP=192.168.1.50
+```
+
+When your LAN IP changes (new wifi, tethering, etc.), update the running stack without a full rebuild:
+
+```sh
+make refresh-urls
+```
+
+Switching between `make local` and `make mobile` on an already-started stack is supported — both targets re-apply the correct URLs and trusted domains on each run.
 
 #### Building changes:
 
