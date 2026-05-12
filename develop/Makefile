@@ -97,13 +97,27 @@ build:
 refresh-urls:
 	@start=$$(date +%s); \
 	  while ! docker compose exec -T eo curl -sf http://localhost/healthcheck >/dev/null 2>&1; do \
+	    if [ "$$(docker inspect --format '{{.State.Status}}' eo 2>/dev/null)" != "running" ]; then \
+	      printf "\r[eo]        failed — check: docker compose logs eo\n"; \
+	      exit 1; \
+	    fi; \
 	    printf "\r[eo]        waiting     (%ds)   " $$(($$(date +%s) - start)); \
 	    sleep 2; \
 	  done; \
 	  printf "\r[eo]        ready        (%ds)        \n" $$(($$(date +%s) - start))
 	@start=$$(date +%s); \
 	  while ! docker compose exec -T -u www-data nextcloud ./occ config:app:get eurooffice DocumentServerUrl 2>/dev/null | grep -q "http"; do \
-	    printf "\r[nextcloud] installing  (%ds)   " $$(($$(date +%s) - start)); \
+	    if [ "$$(docker inspect --format '{{.State.Status}}' nextcloud 2>/dev/null)" != "running" ]; then \
+	      printf "\r[nextcloud] failed — check: docker compose logs nextcloud\n"; \
+	      exit 1; \
+	    fi; \
+	    elapsed=$$(($$(date +%s) - start)); \
+	    if [ $$elapsed -ge 1000 ]; then \
+	      last=$$(docker compose logs --tail=1 nextcloud 2>/dev/null | tr -d '\r'); \
+	      printf "\r[nextcloud] still installing (%ds) — %s   " $$elapsed "$$last"; \
+	    else \
+	      printf "\r[nextcloud] installing  (%ds)   " $$elapsed; \
+	    fi; \
 	    sleep 2; \
 	  done; \
 	  printf "\r[nextcloud] ready        (%ds)        \n" $$(($$(date +%s) - start))
