@@ -35,18 +35,19 @@ ifeq ($(HOST_LAN_IP),)
 	@echo "   For Android / physical device testing: make mobile"
 else
 	@echo "   Mode: mobile / LAN"
-	@echo "   Host LAN IP:   $(HOST_LAN_IP)"
+	@echo "   Nextcloud:     http://$(HOST_LAN_IP):8081/"
 	@echo "   On IP change:  make refresh-urls"
 endif
+	@echo "   Volume:    nc_data_$${NC_VERSION:-latest}  (wipe with: make wipe-nc NC_VERSION=$${NC_VERSION:-latest})"
 	@echo ""
 	docker compose up -d
 	@if [ "$$(docker inspect --format '{{.State.Status}}' nextcloud 2>/dev/null)" != "running" ]; then \
 	  if docker compose logs nextcloud 2>&1 | grep -q "version of the data"; then \
 	    echo ""; \
-	    echo "   WARNING: Nextcloud failed to start — your local nextcloud:latest image is"; \
+	    echo "   WARNING: Nextcloud failed to start — your local nextcloud:$${NC_VERSION:-latest} image is"; \
 	    echo "   behind the data volume. Pull the latest image and retry:"; \
 	    echo ""; \
-	    echo "      docker pull nextcloud:latest && make"; \
+	    echo "      docker pull nextcloud:$${NC_VERSION:-latest} && make"; \
 	    echo ""; \
 	    exit 1; \
 	  fi; \
