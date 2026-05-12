@@ -27,7 +27,7 @@ RUN apt-get -y update && \
     rm -rf /var/lib/apt/lists/*
 
 # Create the 'ds' user that is required by OnlyOffice scripts
-RUN useradd -r -s /bin/false ds || true
+#RUN useradd -r -s /bin/false ds || true
 
 # --- install euro-office .deb package
 ARG TARGETARCH
@@ -43,24 +43,24 @@ RUN apt-get -y update && \
     echo "euro-office-documentserver ds/db-user string eurooffice" | debconf-set-selections && \
     echo "euro-office-documentserver ds/db-pwd password eurooffice" | debconf-set-selections && \
     echo "euro-office-documentserver ds/db-name string eurooffice" | debconf-set-selections && \
-    DS_DOCKER_INSTALLATION=true DEBIAN_FRONTEND=noninteractive apt-get -yq install /tmp/euro-office-documentserver_${PRODUCT_VERSION}-0_${TARGETARCH}.deb && \
-    sudo -u postgres bash -c "PGPASSWORD=eurooffice psql -h localhost -U eurooffice -d eurooffice -f ${EO_ROOT}/server/schema/postgresql/createdb.sql"
+    DS_DOCKER_INSTALLATION=true DEBIAN_FRONTEND=noninteractive apt-get -yq install /tmp/euro-office-documentserver_${PRODUCT_VERSION}-0_${TARGETARCH}.deb
+    #sudo -u postgres bash -c "PGPASSWORD=eurooffice psql -h localhost -U eurooffice -d eurooffice -f ${EO_ROOT}/server/schema/postgresql/createdb.sql"
 
 
 # --- Final setup ---
 COPY build/configs/supervisor/ /etc/supervisor/conf.d/
 COPY --chmod=755 build/scripts/entrypoint.sh /entrypoint.sh
 
-RUN mkdir -p ${EO_LOG}/docservice ${EO_LOG}/converter \
-             ${EO_LOG}/adminpanel ${EO_LOG}/metrics
+#RUN mkdir -p ${EO_LOG}/docservice ${EO_LOG}/converter \
+#             ${EO_LOG}/adminpanel ${EO_LOG}/metrics
 
-RUN mkdir -p ${EO_ROOT}/documentserver-example/files
+#RUN mkdir -p ${EO_ROOT}/documentserver-example/files
 
-RUN mkdir -p ${EO_ROOT}/server/Common/config && \
-    echo '{}' > ${EO_ROOT}/server/Common/config/runtime.json
+#RUN mkdir -p ${EO_ROOT}/server/Common/config && \
+#    echo '{}' > ${EO_ROOT}/server/Common/config/runtime.json
 
-RUN mkdir -p /var/lib/euro-office #&& \
-    chown -R ds:ds /var/www/euro-office /var/lib/euro-office /var/log/euro-office
+#RUN mkdir -p /var/lib/euro-office #&& \
+#    chown -R ds:ds /var/www/euro-office /var/lib/euro-office /var/log/euro-office
 
 RUN /usr/bin/documentserver-flush-cache.sh -r false
 

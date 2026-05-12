@@ -25,7 +25,7 @@ FROM alpine AS bundle
 
     # --- Config files
     COPY build/configs/core/DoctRenderer.config /build/documentserver/server/FileConverter/bin/DoctRenderer.config
-    COPY build/configs/metrics/config/config.js /build/documentserver/server/Metrics/config/config.js
+    COPY server/Metrics/config/config.js /build/documentserver/server/Metrics/config/config.js
 
 
     # --- Build stage outputs (change with code) ---
@@ -46,21 +46,21 @@ FROM alpine AS bundle
 
     COPY --from=example /example/example /build/documentserver-example/example
     RUN mkdir -p /build/documentserver-example/files
-    COPY --from=example /example/config/* /config/documentserver-example/
+    COPY --from=example /example/config /build/documentserver-example/config
 
-    COPY document-server-package/common/documentserver-example/welcome /build/documentserver-example/welcome
-    RUN YEAR=$(date +"%Y") && \
-        sed -i "s|{{OFFICIAL_PRODUCT_NAME}}|Community Edition|g" /build/documentserver-example/welcome/*.html && \
-        find /build/documentserver-example/welcome -depth -type f \
-            -exec sed -i "s_{{year}}_${YEAR}_g" {} \; && \
-        sed -i "s|{{EXAMPLE_DISABLED_COMMANDS}}|sudo systemctl start ds-example|g" \
-            /build/documentserver-example/welcome/example-disabled.html && \
-        rm -f /build/documentserver-example/welcome/admin-disabled.html && \
-        sed -i '/<!-- BEGIN ADMIN PANEL SECTION -->/,/<!-- END ADMIN PANEL SECTION -->/d' \
-            /build/documentserver-example/welcome/docker.html \
-            /build/documentserver-example/welcome/linux.html \
-            /build/documentserver-example/welcome/linux-rpm.html \
-            /build/documentserver-example/welcome/win.html
+    #COPY document-server-package/common/documentserver-example/welcome /build/documentserver-example/welcome
+    #RUN YEAR=$(date +"%Y") && \
+    #    sed -i "s|{{OFFICIAL_PRODUCT_NAME}}|Community Edition|g" /build/documentserver-example/welcome/*.html && \
+    #    find /build/documentserver-example/welcome -depth -type f \
+    #        -exec sed -i "s_{{year}}_${YEAR}_g" {} \; && \
+    #    sed -i "s|{{EXAMPLE_DISABLED_COMMANDS}}|sudo systemctl start ds-example|g" \
+    #        /build/documentserver-example/welcome/example-disabled.html && \
+    #    rm -f /build/documentserver-example/welcome/admin-disabled.html && \
+    #    sed -i '/<!-- BEGIN ADMIN PANEL SECTION -->/,/<!-- END ADMIN PANEL SECTION -->/d' \
+    #        /build/documentserver-example/welcome/docker.html \
+    #        /build/documentserver-example/welcome/linux.html \
+    #        /build/documentserver-example/welcome/linux-rpm.html \
+    #        /build/documentserver-example/welcome/win.html
 
     
     RUN mkdir -p /build/documentserver/server/Common/config/log4js

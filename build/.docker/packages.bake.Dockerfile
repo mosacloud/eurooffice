@@ -36,8 +36,7 @@ FROM ubuntu:24.04 AS package
 
     #Build files
     COPY --from=bundle /build/documentserver ${OUT_DIR}/
-    COPY --from=bundle /build/documentserver-example/example ${EXAMPLE_OUT}/
-    COPY --from=bundle /config/documentserver-example/*.json ${EXAMPLE_OUT}/config/
+    COPY --from=bundle /build/documentserver-example ${EXAMPLE_OUT}/
 
     # Upstream packaging repo
     COPY document-server-package/ /document-server-package/
