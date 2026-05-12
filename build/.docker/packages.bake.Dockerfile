@@ -10,43 +10,53 @@
 #### PACKAGE ####
 
 FROM ubuntu:24.04 AS package
-ARG PRODUCT_VERSION
-ARG BUILD_NUMBER=0
 
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        devscripts dpkg-dev build-essential fakeroot debhelper \
-        rpm m4 curl ca-certificates gnupg symlinks && \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
-    npm install -g @yao-pkg/pkg && \
-    rm -rf /var/lib/apt/lists/*
+    ARG PRODUCT_VERSION
+    ARG BUILD_NUMBER=0
+    ARG OUT_BASE="/build/package/out"
+    ARG BUNDLE_BASE="/build/bundle"
+    ARG OUT_DIR="${BUNDLE_BASE}/euro-office/documentserver"
+    ARG EXAMPLE_OUT="${BUNDLE_BASE}/euro-office/documentserver-example"
 
-#Build files
-    COPY --from=bundle /build/documentserver /build/documentserver
-    COPY --from=bundle /build/documentserver-example /build/documentserver-example
-    COPY --from=bundle /config/documentserver-example /config/documentserver-example
+    ENV PRODUCT_VERSION=${PRODUCT_VERSION}
+    ENV BUILD_NUMBER=${BUILD_NUMBER}
+    ENV OUT_BASE=${OUT_BASE}
+    ENV BUNDLE_BASE=${BUNDLE_BASE}
+    ENV OUT_DIR=${OUT_DIR}
+    ENV EXAMPLE_OUT=${EXAMPLE_OUT}
 
-# Upstream packaging repo
-COPY document-server-package/ /document-server-package/
+    RUN apt-get update && \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            devscripts dpkg-dev build-essential fakeroot debhelper \
+            rpm m4 curl ca-certificates gnupg symlinks && \
+        curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+        apt-get install -y nodejs && \
+        npm install -g @yao-pkg/pkg && \
+        rm -rf /var/lib/apt/lists/*
 
-# Original server source files required by the upstream Makefile's sed transforms
-COPY server/Common/config/ /server-src/Common/config/
-COPY server/schema/        /server-src/schema/
-COPY server/license/       /server-src/license/
-COPY server/LICENSE.txt    /server-src/
-COPY server/3rd-Party.txt  /server-src/
+    #Build files
+    COPY --from=bundle /build/documentserver ${OUT_DIR}/
+    COPY --from=bundle /build/documentserver-example/example ${EXAMPLE_OUT}/
+    COPY --from=bundle /config/documentserver-example/*.json ${EXAMPLE_OUT}/config/
 
-COPY --chmod=755 build/scripts/build-packages.sh /build-packages.sh
+    # Upstream packaging repo
+    COPY document-server-package/ /document-server-package/
 
-ENV PRODUCT_VERSION=${PRODUCT_VERSION}
-ENV BUILD_NUMBER=${BUILD_NUMBER}
+    RUN cd document-server-package && \
+        mkdir -p ${OUT_BASE} && \
+        ln -s ${BUNDLE_BASE} ${OUT_BASE}/linux_64  && \
+        ln -s ${BUNDLE_BASE} ${OUT_BASE}/linux_arm64 && \
+        make deb rpm \
+            BUILD_OUTPUT_DIR="/build/package/out" \
+            PRODUCT_VERSION="${PRODUCT_VERSION}" \
+            BUILD_NUMBER="${BUILD_NUMBER}"
 
-RUN /build-packages.sh
-
+    RUN mkdir -p /packages && \
+        find /document-server-package/deb          -name "*.deb" -exec cp -v {} /packages/ \;  && \
+        find /document-server-package/rpm/builddir -name "*.rpm" -exec cp -v {} /packages/ \;
 
 #### PACKAGES OUTPUT ####
 # Scratch stage so `docker build --target packages -o <dir>` extracts only
 # the finished .deb and .rpm files.
 FROM scratch AS packages
-COPY --from=package /packages/ /
+    COPY --from=package /packages/ /

@@ -61,3 +61,15 @@ FROM alpine AS bundle
             /build/documentserver-example/welcome/linux.html \
             /build/documentserver-example/welcome/linux-rpm.html \
             /build/documentserver-example/welcome/win.html
+
+    
+    RUN mkdir -p /build/documentserver/server/Common/config/log4js
+
+    COPY server/Common/config/. /build/documentserver/server/Common/config/
+
+    RUN rm -f /build/documentserver/server/Common/config/runtime.json
+    
+    COPY server/schema/.       /build/documentserver/server/schema/
+    COPY server/license/.      /build/documentserver/server/license/
+    COPY server/LICENSE.txt    /build/documentserver/server/
+    COPY server/3rd-Party.txt  /build/documentserver/server/
