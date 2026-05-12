@@ -41,7 +41,7 @@ variable "CACHE_BUST" {
 # ──────────────────────────────────────────────
 
 group "default" {
-  targets = ["documentserver"]
+  targets = ["docker"]
 }
 
 group "develop" {
