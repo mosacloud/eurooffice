@@ -383,11 +383,17 @@ jobs:
   # Packages are AMD64-only (no ARM package builds).
   # ─────────────────────────────────────────────────────────────
   build-packages:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     needs: build
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - amd64
+          - arm64
     steps:
       - name: Restore cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -417,23 +423,23 @@ jobs:
           targets: packages
           push: false
           set: |
-            core.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache-amd64
-            core.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache-amd64,mode=max
+            core.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache-${{ matrix.arch }}
+            core.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-buildcache-${{ matrix.arch }},mode=max
             core.tags=
-            core-wasm.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache-amd64
-            core-wasm.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache-amd64,mode=max
+            core-wasm.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache-${{ matrix.arch }}
+            core-wasm.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-core-wasm-buildcache-${{ matrix.arch }},mode=max
             core-wasm.tags=
-            sdkjs.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache-amd64
-            sdkjs.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache-amd64,mode=max
+            sdkjs.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache-${{ matrix.arch }}
+            sdkjs.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-sdkjs-buildcache-${{ matrix.arch }},mode=max
             sdkjs.tags=
-            web-apps.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache-amd64
-            web-apps.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache-amd64,mode=max
+            web-apps.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache-${{ matrix.arch }}
+            web-apps.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-web-apps-buildcache-${{ matrix.arch }},mode=max
             web-apps.tags=
-            server.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache-amd64
-            server.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache-amd64,mode=max
+            server.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache-${{ matrix.arch }}
+            server.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-server-buildcache-${{ matrix.arch }},mode=max
             server.tags=
-            example.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache-amd64
-            example.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache-amd64,mode=max
+            example.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache-${{ matrix.arch }}
+            example.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-example-buildcache-${{ matrix.arch }},mode=max
             example.tags=
             bundle.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-bundle-buildcache-${{ matrix.arch }}
             bundle.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-bundle-buildcache-${{ matrix.arch }},mode=max
