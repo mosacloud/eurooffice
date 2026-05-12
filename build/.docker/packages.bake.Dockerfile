@@ -46,7 +46,7 @@ FROM ubuntu:24.04 AS package
         ln -s ${BUNDLE_BASE} ${OUT_BASE}/linux_64  && \
         ln -s ${BUNDLE_BASE} ${OUT_BASE}/linux_arm64 && \
         make deb rpm \
-            BUILD_OUTPUT_DIR="/build/package/out" \
+            BUILD_OUTPUT_DIR="${OUT_BASE}" \
             PRODUCT_VERSION="${PRODUCT_VERSION}" \
             BUILD_NUMBER="${BUILD_NUMBER}"
 
