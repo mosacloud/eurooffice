@@ -134,14 +134,14 @@ jobs:
 
           # docker target: push on default branch and git tags
           if [[ "$IS_DEFAULT" == "true" ]]; then
-            echo "docker_tag=nightly-${{ matrix.arch }}"  >> $GITHUB_OUTPUT
-            echo "docker_push=true"                       >> $GITHUB_OUTPUT
+            echo "images_tag=nightly-${{ matrix.arch }}"  >> $GITHUB_OUTPUT
+            echo "images_push=true"                       >> $GITHUB_OUTPUT
           elif [[ "$IS_TAG" == "true" ]]; then
-            echo "docker_tag=latest-${{ matrix.arch }}"   >> $GITHUB_OUTPUT
-            echo "docker_push=true"                       >> $GITHUB_OUTPUT
+            echo "images_tag=latest-${{ matrix.arch }}"   >> $GITHUB_OUTPUT
+            echo "images_push=true"                       >> $GITHUB_OUTPUT
           else
-            echo "docker_tag=${REF_NAME}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
-            echo "docker_push=false"                         >> $GITHUB_OUTPUT
+            echo "images_tag=${REF_NAME}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+            echo "images_push=false"                         >> $GITHUB_OUTPUT
           fi
 
           # develop target: push on default branch only
@@ -188,17 +188,29 @@ jobs:
             packages.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-packages-buildcache-${{ matrix.arch }}
             packages.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-packages-buildcache-${{ matrix.arch }},mode=max
             packages.tags=
-            docker.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-docker-buildcache-${{ matrix.arch }}
-            docker.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-docker-buildcache-${{ matrix.arch }},mode=max
-            docker.tags=${{ steps.meta.outputs.docker_push == 'true' && format('{0}/{1}:{2}', env.REGISTRY, env.IMAGE_NAME, steps.meta.outputs.docker_tag) || '' }}
-            docker.output=${{ steps.meta.outputs.docker_push == 'true' && format('type=registry') || 'type=cacheonly' }}
+            cluster-docs.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-cluster-docs-buildcache-${{ matrix.arch }}
+            cluster-docs.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-cluster-docs-buildcache-${{ matrix.arch }},mode=max
+            cluster-docs.tags=${{ steps.meta.outputs.images_push == 'true' && format('{0}/{1}:{2}', env.REGISTRY, env.IMAGE_NAME, steps.meta.outputs.images_tag) || '' }}
+            cluster-docs.output=${{ steps.meta.outputs.images_push == 'true' && format('type=registry') || 'type=cacheonly' }}
+            cluster-example.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-cluster-example-buildcache-${{ matrix.arch }}
+            cluster-example.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-cluster-example-buildcache-${{ matrix.arch }},mode=max
+            cluster-example.tags=${{ steps.meta.outputs.images_push == 'true' && format('{0}/{1}:{2}', env.REGISTRY, env.IMAGE_NAME, steps.meta.outputs.images_tag) || '' }}
+            cluster-example.output=${{ steps.meta.outputs.images_push == 'true' && format('type=registry') || 'type=cacheonly' }}
+            cluster-utils.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-cluster-utils-buildcache-${{ matrix.arch }}
+            cluster-utils.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-cluster-utils-buildcache-${{ matrix.arch }},mode=max
+            cluster-utils.tags=${{ steps.meta.outputs.images_push == 'true' && format('{0}/{1}:{2}', env.REGISTRY, env.IMAGE_NAME, steps.meta.outputs.images_tag) || '' }}
+            cluster-utils.output=${{ steps.meta.outputs.images_push == 'true' && format('type=registry') || 'type=cacheonly' }}
+            standalone.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-standalone-buildcache-${{ matrix.arch }}
+            standalone.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-standalone-buildcache-${{ matrix.arch }},mode=max
+            standalone.tags=${{ steps.meta.outputs.images_push == 'true' && format('{0}/{1}:{2}', env.REGISTRY, env.IMAGE_NAME, steps.meta.outputs.images_tag) || '' }}
+            standalone.output=${{ steps.meta.outputs.images_push == 'true' && format('type=registry') || 'type=cacheonly' }}
             develop.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-develop-buildcache-${{ matrix.arch }}
             develop.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-develop-buildcache-${{ matrix.arch }},mode=max
             develop.tags=${{ steps.meta.outputs.develop_push == 'true' && format('{0}/{1}:latest-dev-{2}', env.REGISTRY, env.IMAGE_NAME, matrix.arch) || '' }}
             develop.output=${{ steps.meta.outputs.develop_push == 'true' && 'type=registry' || 'type=cacheonly' }}
         env:
           REGISTRY: ${{ env.REGISTRY }}
-          TAG: ${{ steps.meta.outputs.docker_tag }}
+          TAG: ${{ steps.meta.outputs.images_tag }}
           PRODUCT_VERSION: ${{ env.PRODUCT_VERSION }}
           BUILD_ROOT: ${{ env.BUILD_ROOT }}
           NUGET_CACHE: local
