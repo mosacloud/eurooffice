@@ -28,6 +28,9 @@ on:
 env:
   REGISTRY: ghcr.io/euro-office
   IMAGE_NAME: documentserver
+  CLUSTER_IMG_DOCS: cluster-docs
+  CLUSTER_IMG_EXAMPLE: cluster-example
+  CLUSTER_IMG_UTILS: cluster-utils
   CACHE_IMAGE_NAME: documentserver-build-cache
   PRODUCT_VERSION: 9.2.1
   BUILD_ROOT: /package
@@ -190,15 +193,15 @@ jobs:
             packages.tags=
             cluster-docs.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-cluster-docs-buildcache-${{ matrix.arch }}
             cluster-docs.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-cluster-docs-buildcache-${{ matrix.arch }},mode=max
-            cluster-docs.tags=${{ steps.meta.outputs.images_push == 'true' && format('{0}/{1}:{2}', env.REGISTRY, env.IMAGE_NAME, steps.meta.outputs.images_tag) || '' }}
+            cluster-docs.tags=${{ steps.meta.outputs.images_push == 'true' && format('{0}/{1}:{2}', env.REGISTRY, env.CLUSTER_IMG_DOCS, steps.meta.outputs.images_tag) || '' }}
             cluster-docs.output=${{ steps.meta.outputs.images_push == 'true' && format('type=registry') || 'type=cacheonly' }}
             cluster-example.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-cluster-example-buildcache-${{ matrix.arch }}
             cluster-example.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-cluster-example-buildcache-${{ matrix.arch }},mode=max
-            cluster-example.tags=${{ steps.meta.outputs.images_push == 'true' && format('{0}/{1}:{2}', env.REGISTRY, env.IMAGE_NAME, steps.meta.outputs.images_tag) || '' }}
+            cluster-example.tags=${{ steps.meta.outputs.images_push == 'true' && format('{0}/{1}:{2}', env.REGISTRY, env.CLUSTER_IMG_EXAMPLE, steps.meta.outputs.images_tag) || '' }}
             cluster-example.output=${{ steps.meta.outputs.images_push == 'true' && format('type=registry') || 'type=cacheonly' }}
             cluster-utils.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-cluster-utils-buildcache-${{ matrix.arch }}
             cluster-utils.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-cluster-utils-buildcache-${{ matrix.arch }},mode=max
-            cluster-utils.tags=${{ steps.meta.outputs.images_push == 'true' && format('{0}/{1}:{2}', env.REGISTRY, env.IMAGE_NAME, steps.meta.outputs.images_tag) || '' }}
+            cluster-utils.tags=${{ steps.meta.outputs.images_push == 'true' && format('{0}/{1}:{2}', env.REGISTRY, env.CLUSTER_IMG_UTILS, steps.meta.outputs.images_tag) || '' }}
             cluster-utils.output=${{ steps.meta.outputs.images_push == 'true' && format('type=registry') || 'type=cacheonly' }}
             standalone.cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-standalone-buildcache-${{ matrix.arch }}
             standalone.cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.CACHE_IMAGE_NAME }}:${{ steps.meta.outputs.ref_name }}-standalone-buildcache-${{ matrix.arch }},mode=max
@@ -256,22 +259,39 @@ jobs:
       - name: Create and push multi-arch manifests
         run: |
           REF="${{ steps.ref.outputs.name }}"
-          REPO="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          REGISTRY="${{ env.REGISTRY }}"
 
           create_manifest() {
-            local tag="$1"
+            local repo="$1"
+            local target_tag="$2"
+            local source_tag="${3:-$target_tag}"
             docker buildx imagetools create \
-              -t "${REPO}:${tag}" \
-              "${REPO}:${tag}-amd64" \
-              "${REPO}:${tag}-arm64"
+              -t "${repo}:${target_tag}" \
+              "${repo}:${source_tag}-amd64" \
+              "${repo}:${source_tag}-arm64"
           }
 
+          # Repos that follow the standard tagging scheme
+          # (nightly on default branch, latest + ref on git tags).
+          # documentserver additionally gets :latest-dev on the default branch
+          # via the develop target; the cluster images do not.
+          REPOS=(
+            "${REGISTRY}/${{ env.IMAGE_NAME }}"
+            "${REGISTRY}/${{ env.CLUSTER_IMG_DOCS }}"
+            "${REGISTRY}/${{ env.CLUSTER_IMG_EXAMPLE }}"
+            "${REGISTRY}/${{ env.CLUSTER_IMG_UTILS }}"
+          )
+
           if [[ "${{ github.ref_name }}" == "${{ github.event.repository.default_branch }}" ]]; then
-            create_manifest "nightly"
-            create_manifest "latest-dev"
+            for repo in "${REPOS[@]}"; do
+              create_manifest "$repo" "nightly"
+            done
+            create_manifest "${REGISTRY}/${{ env.IMAGE_NAME }}" "latest-dev"
           fi
 
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            create_manifest "latest"
-            create_manifest "${REF}"
+            for repo in "${REPOS[@]}"; do
+              create_manifest "$repo" "latest"
+              create_manifest "$repo" "${REF}" "latest"
+            done
           fi
