@@ -256,12 +256,14 @@ FROM node:20-alpine3.19 AS example
 
     WORKDIR /var/www/euro-office/documentserver-example/
 
+    COPY document-server-integration ./document-server-integration
+
     RUN apk update && \
         apk add git && \
-        git clone \
-        --depth 1 \
-        --recurse-submodules \
-        https://github.com/Euro-Office/document-server-integration.git && \
+        #git clone \
+        #--depth 1 \
+        #--recurse-submodules \
+        #https://github.com/Euro-Office/document-server-integration.git && \
         mkdir -p /var/www/euro-office/documentserver-example && \
         cp -r ./document-server-integration/web/documentserver-example/nodejs/. \
         /var/www/euro-office/documentserver-example/ && \
@@ -281,6 +283,9 @@ FROM node:20-alpine3.19 AS example
         mkdir -p /etc/euro-office/documentserver-example/ && \
         chown -R ds:ds /etc/euro-office/ && \
         mv config/* /etc/euro-office/documentserver-example/ && \
+        rmdir config && \
+        ln -sf /etc/euro-office/documentserver-example \
+            /var/www/euro-office/documentserver-example/config && \
         npm install
 
     EXPOSE 3000
@@ -329,17 +334,17 @@ FROM python:3.11-slim-bookworm AS utils
     USER ds
 
 FROM statsd/statsd AS metrics
-    ARG COMPANY_NAME=onlyoffice
+    ARG COMPANY_NAME=euro-office
     COPY --from=ds-service /var/www/$COMPANY_NAME/documentserver/server/Metrics/config/config.js /usr/src/app/config.js
 
 FROM postgres:$POSTGRES_VERSION AS db
-    ARG COMPANY_NAME=onlyoffice
+    ARG COMPANY_NAME=euro-office
     COPY --from=ds-service /var/www/$COMPANY_NAME/documentserver/server/schema/postgresql/createdb.sql /docker-entrypoint-initdb.d/
 
 FROM mysql:$MYSQL_VERSION AS mysqldb
-    ARG COMPANY_NAME=onlyoffice
+    ARG COMPANY_NAME=euro-office
     COPY --chmod=777 --from=ds-service /var/www/$COMPANY_NAME/documentserver/server/schema/mysql/createdb.sql /docker-entrypoint-initdb.d/
 
 FROM mariadb:$MARIADB_VERSION AS db-mariadb
-    ARG COMPANY_NAME=onlyoffice
+    ARG COMPANY_NAME=euro-office
     COPY --from=ds-service /var/www/$COMPANY_NAME/documentserver/server/schema/mysql/createdb.sql /docker-entrypoint-initdb.d/

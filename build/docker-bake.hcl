@@ -12,6 +12,10 @@ variable "PRODUCT_VERSION" {
   default = "9.3.1"
 }
 
+variable "DS_VERSION_HASH" {
+  default = "dev001"
+}
+
 variable "BUILD_ROOT" {
   default = "/package"
 }
@@ -59,6 +63,7 @@ group "develop" {
 target "_common" {
   args = {
     PRODUCT_VERSION = "${PRODUCT_VERSION}"
+    DS_VERSION_HASH = "${DS_VERSION_HASH}"
     BUILD_ROOT      = "${BUILD_ROOT}"
     NUGET_CACHE     = "${NUGET_CACHE}"
     CACHE_BUST      = "${CACHE_BUST}"
