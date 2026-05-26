@@ -14,6 +14,11 @@
 
 FROM alpine AS bundle
     ARG BUILD_ROOT=/package
+    ARG PRODUCT_NAME_LOW
+    ARG COMPANY_NAME_LOW
+
+    ENV PRODUCT_NAME_LOW=${PRODUCT_NAME_LOW}
+    ENV COMPANY_NAME_LOW=${COMPANY_NAME_LOW}
     # --- Copy build files
     RUN mkdir -p /build/documentserver/sdkjs-plugins /build/documentserver/fonts \
                 /build/documentserver/server/FileConverter/lib /build/documentserver/server/tools
@@ -48,6 +53,11 @@ FROM alpine AS bundle
     RUN mkdir -p /build/documentserver-example/files
     COPY --from=example /example/config /build/documentserver-example/config
 
+    RUN find /build/documentserver-example/config/ -type f -name '*.json' \
+        -exec sed -i "s/euro-office/${COMPANY_NAME_LOW}/g" {} +
+    RUN find /build/documentserver-example/config/ -type f -name '*.json' \
+        -exec sed -i "s/documentserver/${PRODUCT_NAME_LOW}/g" {} +
+
     #COPY document-server-package/common/documentserver-example/welcome /build/documentserver-example/welcome
     #RUN YEAR=$(date +"%Y") && \
     #    sed -i "s|{{OFFICIAL_PRODUCT_NAME}}|Community Edition|g" /build/documentserver-example/welcome/*.html && \
@@ -66,6 +76,11 @@ FROM alpine AS bundle
     RUN mkdir -p /build/documentserver/server/Common/config/log4js
 
     COPY server/Common/config/. /build/documentserver/server/Common/config/
+
+    RUN find /build/documentserver/server/Common/config/ -type f -name '*.json' \
+        -exec sed -i "s/euro-office/${COMPANY_NAME_LOW}/g" {} +
+    RUN find /build/documentserver/server/Common/config/ -type f -name '*.json' \
+        -exec sed -i "s/documentserver/${PRODUCT_NAME_LOW}/g" {} +
 
     RUN rm -f /build/documentserver/server/Common/config/runtime.json
     

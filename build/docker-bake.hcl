@@ -1,7 +1,28 @@
 # docker-bake.hcl
 
+
+variable "BRANDING_DIR" {
+  default = "."
+}
+
+variable "COMPANY_NAME" {
+  default = "Euro-Office"
+}
+
+variable "COMPANY_NAME_LOW" {
+  default = regex_replace(lower(COMPANY_NAME), "\\s+", "-")
+}
+
+variable "PRODUCT_NAME" {
+  default = "DocumentServer"
+}
+
+variable "PRODUCT_NAME_LOW" {
+  default = regex_replace(lower(PRODUCT_NAME), "\\s+", "-")
+}
+
 variable "REGISTRY" {
-  default = "ghcr.io/euro-office"
+  default = "ghcr.io/${COMPANY_NAME_LOW}"
 }
 
 variable "TAG" {
@@ -10,6 +31,10 @@ variable "TAG" {
 
 variable "PRODUCT_VERSION" {
   default = "9.3.1"
+}
+
+variable "BUILD_NUMBER" {
+  default = "0"
 }
 
 variable "DS_VERSION_HASH" {
@@ -62,12 +87,18 @@ group "develop" {
 
 target "_common" {
   args = {
-    PRODUCT_VERSION = "${PRODUCT_VERSION}"
-    DS_VERSION_HASH = "${DS_VERSION_HASH}"
-    BUILD_ROOT      = "${BUILD_ROOT}"
-    NUGET_CACHE     = "${NUGET_CACHE}"
-    CACHE_BUST      = "${CACHE_BUST}"
-    PACKAGE_BASE    = "${PACKAGE_BASE}"
+    PRODUCT_VERSION     = "${PRODUCT_VERSION}"
+    BUILD_NUMBER        = "${BUILD_NUMBER}"
+    BUILD_ROOT          = "${BUILD_ROOT}"
+    DS_VERSION_HASH     = "${DS_VERSION_HASH}"
+    NUGET_CACHE         = "${NUGET_CACHE}"
+    CACHE_BUST          = "${CACHE_BUST}"
+    PACKAGE_BASE        = "${PACKAGE_BASE}"
+    BRANDING_DIR        = "${BRANDING_DIR}"
+    PRODUCT_NAME        = "${PRODUCT_NAME}"
+    PRODUCT_NAME_LOW    = "${PRODUCT_NAME_LOW}"
+    COMPANY_NAME        = "${COMPANY_NAME}"
+    COMPANY_NAME_LOW    = "${COMPANY_NAME_LOW}"
   }
 }
 
