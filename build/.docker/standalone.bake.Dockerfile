@@ -10,15 +10,21 @@
 #### FINAL UBUNTU ####
 FROM ubuntu:24.04 AS finalubuntu
 ARG PRODUCT_VERSION
+ARG BUILD_NUMBER
 ARG BUILD_ROOT=/package
 
-ARG EO_ROOT=/var/www/euro-office/documentserver
-ARG EO_LOG=/var/log/euro-office/documentserver
-ARG EO_CONF=/etc/euro-office/documentserver
+ARG COMPANY_NAME_LOW
+ARG PRODUCT_NAME_LOW
+
+ARG EO_ROOT=/var/www/${COMPANY_NAME_LOW}/${PRODUCT_NAME_LOW}
+ARG EO_LOG=/var/log/${COMPANY_NAME_LOW}/${PRODUCT_NAME_LOW}
+ARG EO_CONF=/etc/${COMPANY_NAME_LOW}/${PRODUCT_NAME_LOW}
 
 ENV EO_ROOT=${EO_ROOT}
 ENV EO_LOG=${EO_LOG}
 ENV EO_CONF=${EO_CONF}
+ENV COMPANY_NAME_LOW=${COMPANY_NAME_LOW}
+ENV PRODUCT_NAME_LOW=${PRODUCT_NAME_LOW}
 
 RUN apt-get -y update && \
     ACCEPT_EULA=Y apt-get -yq install \
@@ -29,7 +35,7 @@ RUN apt-get -y update && \
 # Create the 'ds' user that is required by OnlyOffice scripts
 #RUN useradd -r -s /bin/false ds || true
 
-# --- install euro-office .deb package
+# --- install ${COMPANY_NAME_LOW} .deb package
 ARG TARGETARCH
 COPY --from=packages / /tmp/
 RUN apt-get -y update && \
@@ -38,13 +44,13 @@ RUN apt-get -y update && \
     service rabbitmq-server start && \
     sudo -u postgres psql -c "CREATE USER eurooffice WITH password 'eurooffice';" && \
     sudo -u postgres psql -c "CREATE DATABASE eurooffice OWNER eurooffice;" && \
-    echo "euro-office-documentserver ds/db-type string postgres" | debconf-set-selections && \
-    echo "euro-office-documentserver ds/db-host string localhost" | debconf-set-selections && \
-    echo "euro-office-documentserver ds/db-port string 5432" | debconf-set-selections && \
-    echo "euro-office-documentserver ds/db-user string eurooffice" | debconf-set-selections && \
-    echo "euro-office-documentserver ds/db-pwd password eurooffice" | debconf-set-selections && \
-    echo "euro-office-documentserver ds/db-name string eurooffice" | debconf-set-selections && \
-    DS_DOCKER_INSTALLATION=true DEBIAN_FRONTEND=noninteractive apt-get -yq install /tmp/euro-office-documentserver_${PRODUCT_VERSION}-0_${TARGETARCH}.deb
+    echo "${COMPANY_NAME_LOW}-${PRODUCT_NAME_LOW} ds/db-type string postgres" | debconf-set-selections && \
+    echo "${COMPANY_NAME_LOW}-${PRODUCT_NAME_LOW} ds/db-host string localhost" | debconf-set-selections && \
+    echo "${COMPANY_NAME_LOW}-${PRODUCT_NAME_LOW} ds/db-port string 5432" | debconf-set-selections && \
+    echo "${COMPANY_NAME_LOW}-${PRODUCT_NAME_LOW} ds/db-user string eurooffice" | debconf-set-selections && \
+    echo "${COMPANY_NAME_LOW}-${PRODUCT_NAME_LOW} ds/db-pwd password eurooffice" | debconf-set-selections && \
+    echo "${COMPANY_NAME_LOW}-${PRODUCT_NAME_LOW} ds/db-name string eurooffice" | debconf-set-selections && \
+    DS_DOCKER_INSTALLATION=true DEBIAN_FRONTEND=noninteractive apt-get -yq install /tmp/${COMPANY_NAME_LOW}-${PRODUCT_NAME_LOW}_${PRODUCT_VERSION}-${BUILD_NUMBER}_${TARGETARCH}.deb
     #sudo -u postgres bash -c "PGPASSWORD=eurooffice psql -h localhost -U eurooffice -d eurooffice -f ${EO_ROOT}/server/schema/postgresql/createdb.sql"
 
 
@@ -60,8 +66,8 @@ COPY --chmod=755 build/scripts/standalone/entrypoint.sh /entrypoint.sh
 #RUN mkdir -p ${EO_ROOT}/server/Common/config && \
 #    echo '{}' > ${EO_ROOT}/server/Common/config/runtime.json
 
-#RUN mkdir -p /var/lib/euro-office #&& \
-#    chown -R ds:ds /var/www/euro-office /var/lib/euro-office /var/log/euro-office
+#RUN mkdir -p /var/lib/${COMPANY_NAME_LOW} #&& \
+#    chown -R ds:ds /var/www/${COMPANY_NAME_LOW} /var/lib/${COMPANY_NAME_LOW} /var/log/${COMPANY_NAME_LOW}
 
 RUN /usr/bin/documentserver-flush-cache.sh -r false
 
