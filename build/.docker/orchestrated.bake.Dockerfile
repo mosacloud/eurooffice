@@ -6,13 +6,13 @@ FROM fedora:43 AS ds-base
 
     LABEL maintainer Euro-Office
 
-    ARG COMPANY_NAME=euro-office
+    ARG COMPANY_NAME_LOW=euro-office
     ARG DS_VERSION_HASH
-    ENV COMPANY_NAME=$COMPANY_NAME \
-        APPLICATION_NAME=$COMPANY_NAME \
+    ENV COMPANY_NAME_LOW=$COMPANY_NAME_LOW \
+        APPLICATION_NAME=$COMPANY_NAME_LOW \
         DS_VERSION_HASH=$DS_VERSION_HASH \
         NODE_ENV=production-linux \
-        NODE_CONFIG_DIR=/etc/$COMPANY_NAME/documentserver \
+        NODE_CONFIG_DIR=/etc/$COMPANY_NAME_LOW/documentserver \
         PKG_NATIVE_CACHE_PATH=/tmp/.cache
 
     RUN dnf -y updateinfo list --security && \
@@ -52,8 +52,13 @@ FROM ds-base AS ds-service
     ARG PRODUCT_EDITION=
     ARG RELEASE_VERSION
     ARG PRODUCT_VERSION
+    ARG PRODUCT_NAME_LOW
+    ARG BUILD_NUMBER
     ENV TARGETARCH=$TARGETARCH \
-        DS_VERSION_HASH=$DS_VERSION_HASH
+        DS_VERSION_HASH=$DS_VERSION_HASH \
+        COMPANY_NAME_LOW=$COMPANY_NAME_LOW \
+        PRODUCT_NAME_LOW=$PRODUCT_NAME_LOW \
+        BUILD_NUMBER=$BUILD_NUMBER
     WORKDIR /ds
 
     COPY --from=packages / /tmp/
@@ -62,23 +67,23 @@ FROM ds-base AS ds-service
         rpm -ivh --nodigest \
         https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm && \
         TARGETARCH=$(echo $TARGETARCH | sed "s/"$TARGETARCH"/"$(uname -m)"/g") && \
-        rpm -ivh /tmp/euro-office-documentserver-${PRODUCT_VERSION}-0.${TARGETARCH}.rpm --noscripts --nodeps && \
-        mkdir -p /var/www/$COMPANY_NAME/documentserver/core-fonts/msttcore && \
+        rpm -ivh /tmp/${COMPANY_NAME_LOW}-${PRODUCT_NAME_LOW}-${PRODUCT_VERSION}-${BUILD_NUMBER}.${TARGETARCH}.rpm --noscripts --nodeps && \
+        mkdir -p /var/www/$COMPANY_NAME_LOW/documentserver/core-fonts/msttcore && \
         cp -vt \
-            /var/www/$COMPANY_NAME/documentserver/core-fonts/msttcore \
+            /var/www/$COMPANY_NAME_LOW/documentserver/core-fonts/msttcore \
             /usr/share/fonts/msttcore/*.ttf && \
-        chmod a+r /etc/$COMPANY_NAME/documentserver*/*.json && \
-        chmod a+r /etc/$COMPANY_NAME/documentserver/log4js/*.json
+        chmod a+r /etc/$COMPANY_NAME_LOW/documentserver*/*.json && \
+        chmod a+r /etc/$COMPANY_NAME_LOW/documentserver/log4js/*.json
     COPY --chown=ds:ds \
         build/configs/orchestrated/nginx/includes/http-common.conf \
         build/configs/orchestrated/nginx/includes/http-upstream.conf \
-        /etc/$COMPANY_NAME/documentserver/nginx/includes/
+        /etc/$COMPANY_NAME_LOW/documentserver/nginx/includes/
     #COPY --chown=ds:ds \
     #    fonts/ \
-    #    /var/www/$COMPANY_NAME/documentserver/core-fonts/custom/
+    #    /var/www/$COMPANY_NAME_LOW/documentserver/core-fonts/custom/
     #COPY --chown=ds:ds \
     #    plugins/ \
-    #    /var/www/$COMPANY_NAME/documentserver/sdkjs-plugins/
+    #    /var/www/$COMPANY_NAME_LOW/documentserver/sdkjs-plugins/
     #COPY --chown=ds:ds \
     #    dictionaries/ \
     #    /var/www/onlyoffice/documentserver/dictionaries/
@@ -86,7 +91,7 @@ FROM ds-base AS ds-service
         #python3 /var/www/onlyoffice/documentserver/server/dictionaries/update.py && \
         documentserver-flush-cache.sh -h $DS_VERSION_HASH -r false
     #    documentserver-pluginsmanager.sh -r false \
-    #    --update=\"/var/www/$COMPANY_NAME/documentserver/sdkjs-plugins/plugin-list-default.json\"
+    #    --update=\"/var/www/$COMPANY_NAME_LOW/documentserver/sdkjs-plugins/plugin-list-default.json\"
 
 # --------------------------------------------------------------------------------
 # This image contains ALL runtime components (DocService, Converter, Adminpanel and
@@ -114,76 +119,76 @@ FROM ds-base AS docs
         #/usr/bin/documentserver-pluginsmanager.sh \
         /usr/local/bin/
     #COPY --from=ds-service \
-    #    /var/www/$COMPANY_NAME/documentserver/server/dictionaries/update.py \
-    #    /var/www/$COMPANY_NAME/documentserver/server/dictionaries/update.py
+    #    /var/www/$COMPANY_NAME_LOW/documentserver/server/dictionaries/update.py \
+    #    /var/www/$COMPANY_NAME_LOW/documentserver/server/dictionaries/update.py
     COPY --from=ds-service \
-        /var/www/$COMPANY_NAME/documentserver/server/tools/allfontsgen \
-        /var/www/$COMPANY_NAME/documentserver/server/tools/allfontsgen
+        /var/www/$COMPANY_NAME_LOW/documentserver/server/tools/allfontsgen \
+        /var/www/$COMPANY_NAME_LOW/documentserver/server/tools/allfontsgen
     COPY --from=ds-service \
-        /var/www/$COMPANY_NAME/documentserver/server/tools/allthemesgen \
-        /var/www/$COMPANY_NAME/documentserver/server/tools/allthemesgen
+        /var/www/$COMPANY_NAME_LOW/documentserver/server/tools/allthemesgen \
+        /var/www/$COMPANY_NAME_LOW/documentserver/server/tools/allthemesgen
     COPY --from=ds-service \
-        /var/www/$COMPANY_NAME/documentserver/server/tools/pluginsmanager \
-        /var/www/$COMPANY_NAME/documentserver/server/tools/pluginsmanager
+        /var/www/$COMPANY_NAME_LOW/documentserver/server/tools/pluginsmanager \
+        /var/www/$COMPANY_NAME_LOW/documentserver/server/tools/pluginsmanager
     COPY --chown=ds:ds --chmod=644 --from=ds-service \
-        /etc/$COMPANY_NAME/documentserver/nginx/ds.conf \
+        /etc/$COMPANY_NAME_LOW/documentserver/nginx/ds.conf \
         /etc/nginx/conf.d/
     COPY --chown=ds:ds --chmod=644 --from=ds-service \
-        /etc/$COMPANY_NAME/documentserver*/nginx/includes/*.conf \
+        /etc/$COMPANY_NAME_LOW/documentserver*/nginx/includes/*.conf \
         /etc/nginx/includes/ds-cache.conf \
         /etc/nginx/includes/
     COPY --chown=ds:ds --from=ds-service \
-        /var/www/$COMPANY_NAME/documentserver/dictionaries \
-        /var/www/$COMPANY_NAME/documentserver/dictionaries
+        /var/www/$COMPANY_NAME_LOW/documentserver/dictionaries \
+        /var/www/$COMPANY_NAME_LOW/documentserver/dictionaries
     COPY --from=ds-service \
-        /etc/$COMPANY_NAME/documentserver/default.json \
-        /etc/$COMPANY_NAME/documentserver/production-linux.json \
-        /etc/$COMPANY_NAME/documentserver/
+        /etc/$COMPANY_NAME_LOW/documentserver/default.json \
+        /etc/$COMPANY_NAME_LOW/documentserver/production-linux.json \
+        /etc/$COMPANY_NAME_LOW/documentserver/
     COPY --from=ds-service --chown=ds:ds \
-        /etc/$COMPANY_NAME/documentserver/log4js/production.json \
-        /etc/$COMPANY_NAME/documentserver/log4js/
+        /etc/$COMPANY_NAME_LOW/documentserver/log4js/production.json \
+        /etc/$COMPANY_NAME_LOW/documentserver/log4js/
     COPY --chown=ds:ds --from=ds-service \
-        /var/www/$COMPANY_NAME/documentserver/sdkjs-plugins \
-        /var/www/$COMPANY_NAME/documentserver/sdkjs-plugins
+        /var/www/$COMPANY_NAME_LOW/documentserver/sdkjs-plugins \
+        /var/www/$COMPANY_NAME_LOW/documentserver/sdkjs-plugins
     COPY --from=ds-service \
-        /var/www/$COMPANY_NAME/documentserver/core-fonts \
-        /var/www/$COMPANY_NAME/documentserver/core-fonts
+        /var/www/$COMPANY_NAME_LOW/documentserver/core-fonts \
+        /var/www/$COMPANY_NAME_LOW/documentserver/core-fonts
     COPY --chown=ds:ds --from=ds-service \
-        /var/www/$COMPANY_NAME/documentserver/fonts \
-        /var/www/$COMPANY_NAME/documentserver/fonts
+        /var/www/$COMPANY_NAME_LOW/documentserver/fonts \
+        /var/www/$COMPANY_NAME_LOW/documentserver/fonts
     COPY --from=ds-service \
         /usr/share/fonts \
         /usr/share/fonts
     COPY --chown=ds:ds --from=ds-service \
-        /var/www/$COMPANY_NAME/documentserver/sdkjs \
-        /var/www/$COMPANY_NAME/documentserver/sdkjs
+        /var/www/$COMPANY_NAME_LOW/documentserver/sdkjs \
+        /var/www/$COMPANY_NAME_LOW/documentserver/sdkjs
     COPY --from=ds-service \
-        /var/www/$COMPANY_NAME/documentserver/server/DocService \
-        /var/www/$COMPANY_NAME/documentserver/server/DocService
+        /var/www/$COMPANY_NAME_LOW/documentserver/server/DocService \
+        /var/www/$COMPANY_NAME_LOW/documentserver/server/DocService
     COPY --from=ds-service \
-        /var/www/$COMPANY_NAME/documentserver/server/FileConverter \
-        /var/www/$COMPANY_NAME/documentserver/server/FileConverter
+        /var/www/$COMPANY_NAME_LOW/documentserver/server/FileConverter \
+        /var/www/$COMPANY_NAME_LOW/documentserver/server/FileConverter
     COPY --from=ds-service \
-        /var/www/$COMPANY_NAME/documentserver/server/AdminPanel/server \
-        /var/www/$COMPANY_NAME/documentserver/server/AdminPanel/server
+        /var/www/$COMPANY_NAME_LOW/documentserver/server/AdminPanel/server \
+        /var/www/$COMPANY_NAME_LOW/documentserver/server/AdminPanel/server
     COPY --chown=ds:ds --from=ds-service \
-        /var/www/$COMPANY_NAME/documentserver/server/AdminPanel/client \
+        /var/www/$COMPANY_NAME_LOW/documentserver/server/AdminPanel/client \
         /client
     #COPY --from=ds-service \
-    #    /var/www/$COMPANY_NAME/documentserver/server/info \
-    #    /var/www/$COMPANY_NAME/documentserver/server/info
+    #    /var/www/$COMPANY_NAME_LOW/documentserver/server/info \
+    #    /var/www/$COMPANY_NAME_LOW/documentserver/server/info
     COPY --chown=ds:ds --from=ds-service \
-        /var/www/$COMPANY_NAME/documentserver/web-apps \
-        /var/www/$COMPANY_NAME/documentserver/web-apps
+        /var/www/$COMPANY_NAME_LOW/documentserver/web-apps \
+        /var/www/$COMPANY_NAME_LOW/documentserver/web-apps
     COPY --from=ds-service \
-        /var/www/$COMPANY_NAME/documentserver/document-templates/new \
-        /var/www/$COMPANY_NAME/documentserver/document-templates/new
+        /var/www/$COMPANY_NAME_LOW/documentserver/document-templates/new \
+        /var/www/$COMPANY_NAME_LOW/documentserver/document-templates/new
     #COPY --from=ds-service \
-    #    /var/www/$COMPANY_NAME/documentserver/document-formats \
-    #    /var/www/$COMPANY_NAME/documentserver/document-formats
+    #    /var/www/$COMPANY_NAME_LOW/documentserver/document-formats \
+    #    /var/www/$COMPANY_NAME_LOW/documentserver/document-formats
     COPY --chown=ds:ds --from=ds-service \
-        /var/www/$COMPANY_NAME/documentserver-example/welcome \
-        /var/www/$COMPANY_NAME/documentserver-example/welcome
+        /var/www/$COMPANY_NAME_LOW/documentserver-example/welcome \
+        /var/www/$COMPANY_NAME_LOW/documentserver-example/welcome
     COPY build/scripts/orchestrated/docker-entrypoint.sh build/scripts/orchestrated/proxy-docker-entrypoint.sh /usr/local/bin/
     COPY build/scripts/orchestrated/init-docker-entrypoint.sh /init/
     RUN sed 's|\(application\/zip.*\)|\1\n    application\/wasm wasm;|' \
@@ -202,24 +207,24 @@ FROM ds-base AS docs
         ln -sf /dev/stdout /var/log/nginx/access.log && \
         ln -sf /dev/stderr /var/log/nginx/error.log && \
         mkdir -p \
-            /var/lib/$COMPANY_NAME/documentserver/App_Data/cache/files \
-            /var/www/$COMPANY_NAME/config \
-            /var/lib/$COMPANY_NAME/documentserver/App_Data/docbuilder && \
-        chown -R ds:ds /var/lib/$COMPANY_NAME/documentserver /var/www/$COMPANY_NAME/config && \
+            /var/lib/$COMPANY_NAME_LOW/documentserver/App_Data/cache/files \
+            /var/www/$COMPANY_NAME_LOW/config \
+            /var/lib/$COMPANY_NAME_LOW/documentserver/App_Data/docbuilder && \
+        chown -R ds:ds /var/lib/$COMPANY_NAME_LOW/documentserver /var/www/$COMPANY_NAME_LOW/config && \
         find \
-            /var/www/$COMPANY_NAME/documentserver/fonts \
+            /var/www/$COMPANY_NAME_LOW/documentserver/fonts \
             -type f ! \
             -name "*.*" \
             -exec sh -c 'gzip -cf9 $0 > $0.gz && chown ds:ds $0.gz' {} \; && \
         find \
-            /var/www/$COMPANY_NAME/documentserver/sdkjs \
-            /var/www/$COMPANY_NAME/documentserver/sdkjs-plugins \
-            /var/www/$COMPANY_NAME/documentserver/web-apps \
-            /var/www/$COMPANY_NAME/documentserver-example/welcome \
+            /var/www/$COMPANY_NAME_LOW/documentserver/sdkjs \
+            /var/www/$COMPANY_NAME_LOW/documentserver/sdkjs-plugins \
+            /var/www/$COMPANY_NAME_LOW/documentserver/web-apps \
+            /var/www/$COMPANY_NAME_LOW/documentserver-example/welcome \
             -type f \
             \( -name *.js -o -name *.json -o -name *.htm -o -name *.html -o -name *.css \) \
             -exec sh -c 'gzip -cf9 $0 > $0.gz && chown ds:ds $0.gz' {} \;
-    VOLUME /var/lib/$COMPANY_NAME
+    VOLUME /var/lib/$COMPANY_NAME_LOW
     USER ds
 
     # --------------------------------------------------------------------
@@ -334,17 +339,17 @@ FROM python:3.11-slim-bookworm AS utils
     USER ds
 
 FROM statsd/statsd AS metrics
-    ARG COMPANY_NAME=euro-office
-    COPY --from=ds-service /var/www/$COMPANY_NAME/documentserver/server/Metrics/config/config.js /usr/src/app/config.js
+    ARG COMPANY_NAME_LOW=euro-office
+    COPY --from=ds-service /var/www/$COMPANY_NAME_LOW/documentserver/server/Metrics/config/config.js /usr/src/app/config.js
 
 FROM postgres:$POSTGRES_VERSION AS db
-    ARG COMPANY_NAME=euro-office
-    COPY --from=ds-service /var/www/$COMPANY_NAME/documentserver/server/schema/postgresql/createdb.sql /docker-entrypoint-initdb.d/
+    ARG COMPANY_NAME_LOW=euro-office
+    COPY --from=ds-service /var/www/$COMPANY_NAME_LOW/documentserver/server/schema/postgresql/createdb.sql /docker-entrypoint-initdb.d/
 
 FROM mysql:$MYSQL_VERSION AS mysqldb
-    ARG COMPANY_NAME=euro-office
-    COPY --chmod=777 --from=ds-service /var/www/$COMPANY_NAME/documentserver/server/schema/mysql/createdb.sql /docker-entrypoint-initdb.d/
+    ARG COMPANY_NAME_LOW=euro-office
+    COPY --chmod=777 --from=ds-service /var/www/$COMPANY_NAME_LOW/documentserver/server/schema/mysql/createdb.sql /docker-entrypoint-initdb.d/
 
 FROM mariadb:$MARIADB_VERSION AS db-mariadb
-    ARG COMPANY_NAME=euro-office
-    COPY --from=ds-service /var/www/$COMPANY_NAME/documentserver/server/schema/mysql/createdb.sql /docker-entrypoint-initdb.d/
+    ARG COMPANY_NAME_LOW=euro-office
+    COPY --from=ds-service /var/www/$COMPANY_NAME_LOW/documentserver/server/schema/mysql/createdb.sql /docker-entrypoint-initdb.d/
