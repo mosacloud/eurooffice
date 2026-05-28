@@ -33,6 +33,7 @@ RUN apt-get -y update && \
 ARG TARGETARCH
 COPY --from=packages / /tmp/
 RUN apt-get -y update && \
+    (pg_createcluster 16 main || true) && \
     service postgresql start && \
     service rabbitmq-server start && \
     sudo -u postgres psql -c "CREATE USER eurooffice WITH password 'eurooffice';" && \
