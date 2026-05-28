@@ -57,6 +57,15 @@ if [ -n "$JWT_SECRET" ]; then
   jq_filter="$jq_filter | .services.CoAuthoring.secret.session.string = \$jwtSecret"
 fi
 
+JWT_HEADER_INBOX_VALUE="${JWT_HEADER_INBOX:-$JWT_HEADER}"
+JWT_HEADER_OUTBOX_VALUE="${JWT_HEADER_OUTBOX:-$JWT_HEADER}"
+
+[ -n "$JWT_HEADER_INBOX_VALUE" ] && \
+  jq_filter="$jq_filter | .services.CoAuthoring.token.inbox.header = \$jwtHeaderInbox"
+
+[ -n "$JWT_HEADER_OUTBOX_VALUE" ] && \
+  jq_filter="$jq_filter | .services.CoAuthoring.token.outbox.header = \$jwtHeaderOutbox"
+
 [ -n "$DB_PASSWORD" ] && \
   jq_filter="$jq_filter | .services.CoAuthoring.sql.dbPass = \$dbPassword"
 
@@ -72,6 +81,8 @@ fi
 if [ "$jq_filter" != "." ]; then
   jq \
     --arg jwtSecret "$JWT_SECRET" \
+    --arg jwtHeaderInbox "$JWT_HEADER_INBOX_VALUE" \
+    --arg jwtHeaderOutbox "$JWT_HEADER_OUTBOX_VALUE" \
     --arg dbPassword "$DB_PASSWORD" \
     "$jq_filter" \
     "$CONFIG_FILE" > "${CONFIG_FILE}.tmp"
