@@ -34,7 +34,7 @@ variable "PRODUCT_VERSION" {
 }
 
 variable "BUILD_NUMBER" {
-  default = "0"
+  default = "dev.1"
 }
 
 variable "DS_VERSION_HASH" {

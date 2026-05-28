@@ -32,7 +32,8 @@ env:
   CLUSTER_IMG_EXAMPLE: cluster-example
   CLUSTER_IMG_UTILS: cluster-utils
   CACHE_IMAGE_NAME: documentserver-build-cache
-  PRODUCT_VERSION: 9.2.1
+  PRODUCT_VERSION: 9.3.1
+  BUILD_NUMBER: dev.1
   BUILD_ROOT: /package
 
 jobs:
@@ -154,6 +155,16 @@ jobs:
             echo "develop_push=false" >> $GITHUB_OUTPUT
           fi
 
+          # Parse PRODUCT_VERSION / BUILD_NUMBER from tag of the form v${PRODUCT_VERSION}-${BUILD_NUMBER}
+          # (e.g. v9.3.1-beta.1, v9.3.1-stable.1). Fall back to env defaults otherwise.
+          if [[ "$IS_TAG" == "true" && "${{ github.ref_name }}" =~ ^v([^-]+)-(.+)$ ]]; then
+            echo "product_version=${BASH_REMATCH[1]}" >> $GITHUB_OUTPUT
+            echo "build_number=${BASH_REMATCH[2]}"    >> $GITHUB_OUTPUT
+          else
+            echo "product_version=${{ env.PRODUCT_VERSION }}" >> $GITHUB_OUTPUT
+            echo "build_number=${{ env.BUILD_NUMBER }}"       >> $GITHUB_OUTPUT
+          fi
+
       - name: Build all targets (packages → docker → develop)
         uses: docker/bake-action@4a9a8d494466d37134e2bfca2d3a8de8fb2681ad # v5.13.0
         with:
@@ -214,7 +225,8 @@ jobs:
         env:
           REGISTRY: ${{ env.REGISTRY }}
           TAG: ${{ steps.meta.outputs.images_tag }}
-          PRODUCT_VERSION: ${{ env.PRODUCT_VERSION }}
+          PRODUCT_VERSION: ${{ steps.meta.outputs.product_version }}
+          BUILD_NUMBER: ${{ steps.meta.outputs.build_number }}
           BUILD_ROOT: ${{ env.BUILD_ROOT }}
           NUGET_CACHE: local
 
