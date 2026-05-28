@@ -11,7 +11,7 @@ DATA_DIR="/var/www/euro-office/Data"
 PRIVATE_DIR="${DATA_DIR}/.private"
 CONFIG_FILE="${EO_CONF}/local.json"
 LOG4JS_CONFIG="${EO_CONF}/log4js/production.json"
-EXAMPLE_CONF_DIR="/etc/euro-office/documentserver-example"
+EXAMPLE_CONF_DIR="${EO_CONF}-example"
 EXAMPLE_LOCAL="${EXAMPLE_CONF_DIR}/local.json"
 NGINX_CONFIG_PATH="/etc/nginx/nginx.conf"
 NGINX_DS_DIR="${EO_CONF}/nginx"
@@ -378,8 +378,8 @@ fi
 # Welcome page rewrite (preserved from previous entrypoint).
 # --------------------------------------------------------------------
 update_welcome_page() {
-  WELCOME_PAGE="/var/www/euro-office/documentserver-example/welcome/docker.html"
-  EXAMPLE_DISABLED_PAGE="/var/www/euro-office/documentserver-example/welcome/example-disabled.html"
+  WELCOME_PAGE="${EO_ROOT}-example/welcome/docker.html"
+  EXAMPLE_DISABLED_PAGE="${EO_ROOT}-example/welcome/example-disabled.html"
 
   [ -f "$EXAMPLE_DISABLED_PAGE" ] && \
     sed -i 's|sudo systemctl start ds-example|sudo docker exec $(sudo docker ps -q) supervisorctl start ds:example|g' \
@@ -405,8 +405,8 @@ update_welcome_page() {
 }
 update_welcome_page
 
-# Symlink /config -> /etc/euro-office/documentserver for tools that expect it
-ln -sf /etc/euro-office/documentserver /config 2>/dev/null || true
+# Symlink /config -> ${EO_CONF} for tools that expect it
+ln -sf ${EO_CONF} /config 2>/dev/null || true
 
 # Ensure api.js template (required by documentserver-flush-cache.sh)
 API_TPL="${EO_ROOT}/web-apps/apps/api/documents/api.js.tpl"
