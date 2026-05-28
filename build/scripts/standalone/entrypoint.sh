@@ -43,7 +43,7 @@ PLUGINS_ENABLED="${PLUGINS_ENABLED:-true}"
 METRICS_ENABLED="${METRICS_ENABLED:-false}"
 METRICS_HOST="${METRICS_HOST:-localhost}"
 METRICS_PORT="${METRICS_PORT:-8125}"
-METRICS_PREFIX="${METRICS_PREFIX:-.ds}"
+METRICS_PREFIX="${METRICS_PREFIX:-ds.}"
 GENERATE_FONTS="${GENERATE_FONTS:-true}"
 
 NGINX_WORKER_PROCESSES="${NGINX_WORKER_PROCESSES:-1}"
@@ -136,6 +136,7 @@ if [ "$WOPI_ENABLED" = "true" ]; then
     echo "Generating WOPI private key..."
     openssl genpkey -algorithm RSA -outform PEM -out "$WOPI_PRIVATE_KEY" >/dev/null 2>&1
   fi
+  chmod 600 "$WOPI_PRIVATE_KEY" 2>/dev/null || true
   if [ ! -f "$WOPI_PUBLIC_KEY" ]; then
     echo "Generating WOPI public key..."
     openssl rsa -RSAPublicKey_out -in "$WOPI_PRIVATE_KEY" -outform "MS PUBLICKEYBLOB" -out "$WOPI_PUBLIC_KEY" >/dev/null 2>&1
@@ -241,8 +242,15 @@ if [ "$METRICS_ENABLED" = "true" ]; then
   jq_set '.statsd.prefix     = $metricsPrefix'
 fi
 
-# Construct the AMQP URI value (may be unused if AMQP_HOST=localhost and AMQP_URI unset)
-AMQP_URI_VALUE="${AMQP_URI:-amqp://${AMQP_USER:-guest}:${AMQP_PWD:-guest}@${AMQP_HOST}:${AMQP_PORT}${AMQP_VHOST:-/}}"
+# Construct the AMQP URI value (may be unused if AMQP_HOST=localhost and AMQP_URI unset).
+# AMQP_VHOST is a vhost name (e.g. "myvhost"); normalize to a leading slash before
+# appending to the URI so values without it still produce a valid amqp:// URI.
+AMQP_VHOST_PATH="${AMQP_VHOST:-/}"
+case "$AMQP_VHOST_PATH" in
+  /*) ;;
+  *) AMQP_VHOST_PATH="/${AMQP_VHOST_PATH}" ;;
+esac
+AMQP_URI_VALUE="${AMQP_URI:-amqp://${AMQP_USER:-guest}:${AMQP_PWD:-guest}@${AMQP_HOST}:${AMQP_PORT}${AMQP_VHOST_PATH}}"
 
 jq \
   --arg jwtEnabled       "$JWT_ENABLED" \
