@@ -30,3 +30,7 @@
 [submodule "sdkjs-forms"]
 	path = sdkjs-forms
 	url = https://github.com/Euro-Office/sdkjs-forms.git
+[submodule "document-formats"]
+	path = document-formats
+	url = https://github.com/Euro-Office/document-formats.git
+	branch = main
