@@ -107,6 +107,10 @@ target "_common" {
 # ──────────────────────────────────────────────
 
 target "brand-icons" {
+  ## dummy image that contains no brand,
+  ## so default brand is applied implicitly.
+  ## needs workdir as scratch is otherwise 
+  ## non-existent
   dockerfile-inline = "FROM scratch\nWORKDIR /keep"
 }
 
