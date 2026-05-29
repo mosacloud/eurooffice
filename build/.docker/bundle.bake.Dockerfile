@@ -27,6 +27,8 @@ FROM alpine AS bundle
     COPY dictionaries /build/documentserver/dictionaries
     COPY document-templates /build/documentserver/document-templates
     COPY core-fonts /build/documentserver/core-fonts
+    # WOPI/discovery format list consumed by services.CoAuthoring.server.documentFormatsFile
+    COPY document-formats/onlyoffice-docs-formats.json /build/documentserver/document-formats/onlyoffice-docs-formats.json
 
     # --- Config files
     COPY build/configs/core/DoctRenderer.config /build/documentserver/server/FileConverter/bin/DoctRenderer.config
