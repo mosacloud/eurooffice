@@ -185,6 +185,14 @@ jobs:
             echo "develop_push=false" >> $GITHUB_OUTPUT
           fi
 
+          # nextcloud-office images must not be pushed to ghcr.io/euro-office;
+          # only its .deb/.rpm packages are shipped (via SSH). Override the
+          # flags for that brand (last write to $GITHUB_OUTPUT wins).
+          if [[ "${{ matrix.brand.name }}" == "nextcloud-office" ]]; then
+            echo "images_push=false"  >> $GITHUB_OUTPUT
+            echo "develop_push=false" >> $GITHUB_OUTPUT
+          fi
+
           # Parse PRODUCT_VERSION / BUILD_NUMBER from tag of the form v${PRODUCT_VERSION}-${BUILD_NUMBER}
           # (e.g. v9.3.1-beta.1, v9.3.1-stable.1). Fall back to env defaults otherwise.
           if [[ "$IS_TAG" == "true" && "${{ github.ref_name }}" =~ ^v([^-]+)-(.+)$ ]]; then
@@ -280,7 +288,7 @@ jobs:
           key: ${{ secrets.NEXTCLOUD_SSH_KEY }}
           port: ${{ secrets.NEXTCLOUD_SSH_PORT || 22 }}
           source: "build/deploy/packages/*.deb,build/deploy/packages/*.rpm"
-          target: ${{ secrets.NEXTCLOUD_SSH_REMOTE_PATH }}
+          target: ${{ secrets.NEXTCLOUD_SSH_REMOTE_PATH }}/${{ steps.meta.outputs.product_version }}/${{ steps.meta.outputs.build_number }}
           strip_components: 3
 
   # ─────────────────────────────────────────────────────────────
@@ -338,10 +346,10 @@ jobs:
             "${REGISTRY}/${{ env.CLUSTER_IMG_DOCS }}"
             "${REGISTRY}/${{ env.CLUSTER_IMG_EXAMPLE }}"
             "${REGISTRY}/${{ env.CLUSTER_IMG_UTILS }}"
-            "${REGISTRY}/${{ env.NEXTCLOUD_IMAGE_NAME }}"
-            "${REGISTRY}/${{ env.NEXTCLOUD_CLUSTER_IMG_DOCS }}"
-            "${REGISTRY}/${{ env.NEXTCLOUD_CLUSTER_IMG_EXAMPLE }}"
-            "${REGISTRY}/${{ env.NEXTCLOUD_CLUSTER_IMG_UTILS }}"
+            #"${REGISTRY}/${{ env.NEXTCLOUD_IMAGE_NAME }}"
+            #"${REGISTRY}/${{ env.NEXTCLOUD_CLUSTER_IMG_DOCS }}"
+            #"${REGISTRY}/${{ env.NEXTCLOUD_CLUSTER_IMG_EXAMPLE }}"
+            #"${REGISTRY}/${{ env.NEXTCLOUD_CLUSTER_IMG_UTILS }}"
           )
 
           if [[ "${{ github.ref_name }}" == "${{ github.event.repository.default_branch }}" ]]; then
@@ -349,7 +357,7 @@ jobs:
               create_manifest "$repo" "nightly"
             done
             create_manifest "${REGISTRY}/${{ env.IMAGE_NAME }}" "latest-dev"
-            create_manifest "${REGISTRY}/${{ env.NEXTCLOUD_IMAGE_NAME }}" "latest-dev"
+            #create_manifest "${REGISTRY}/${{ env.NEXTCLOUD_IMAGE_NAME }}" "latest-dev"
           fi
 
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
