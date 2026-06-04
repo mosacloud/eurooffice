@@ -147,14 +147,16 @@ make wipe-next NC_BRANCH=stable33     # wipes nc_data_stable33
 
 #### ARM64 support (Apple Silicon / Graviton)
 
-The Docker image and dev Makefile handle ARM64 automatically:
+The GHCR `latest-dev` image is a multi-arch manifest covering both `amd64` and `arm64`, so
+`make pull` works on Apple Silicon and Graviton machines the same as on x86_64 — Docker
+selects the native variant automatically.
+
+When building inside the container, the dev Makefile handles ARM64 automatically:
 
 - **core**: Uses pre-built upstream binaries on arm64 (V8's bundled clang is x86_64-only)
 - **sdkjs**: Closure Compiler falls back to Java mode (`CC_PLATFORM=java`) since the native binary is x86_64-only
 - **web-apps**: Skips imagemin on arm64 (native binaries are x86_64-only)
 - **server**: `pkg` builds native arm64 binaries
-
-No GHCR arm64 image is available yet, so ARM64 users must build locally with `make build`.
 
 ## Development Builds
 
