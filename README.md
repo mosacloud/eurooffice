@@ -34,7 +34,7 @@ container-only pieces removed (see [Differences from the Docker image](#differen
 
 ## System requirements
 
-- **OS:** Ubuntu 24.04 LTS
+- **OS:** minimum Ubuntu 22.04 LTS, Debian 12
 - **Architecture:** `amd64` or `arm64` — download the build matching your host.
   Check yours with `dpkg --print-architecture`.
 - **Privileges:** root / `sudo` access.
@@ -52,7 +52,7 @@ Install the runtime services and the utilities the package's scripts rely on:
 sudo apt-get update
 ACCEPT_EULA=Y sudo apt-get install -y \
     postgresql postgresql-client redis-server rabbitmq-server \
-    nginx nginx-extras supervisor sudo gdb jq util-linux \
+    nginx nginx-extras sudo gdb jq util-linux \
     netcat-openbsd xxd openssl
 ```
 
@@ -104,10 +104,10 @@ installation.
 Download the build that matches your version, build number, and architecture:
 
 ```bash
-wget http://xyz.com/version/build/package.deb -O documentserver.deb
+wget https://github.com/Euro-Office/DocumentServer/releases/download/v{version}-{build}/euro-office-documentserver_{version}-{build}_{platform}.deb -O documentserver.rpm
 ```
 
-Replace `version` and `build` in the URL with the release you are installing.
+Replace `version` and `build` and `platform` with the release you are installing.
 
 ## Step 5: Install the package
 
@@ -124,7 +124,26 @@ services.
 > flag is only for our Docker build, where service start-up and schema setup are
 > handled by the container instead of the package.
 
-## Step 6: Flush the cache
+## Step 6: Enable and start the Document Server services
+
+The package's services are not enabled or started automatically. Enable and
+start them (`--now` does both):
+
+```bash
+sudo systemctl enable --now ds-docservice.service ds-example.service
+```
+
+List all units the package provides in case there are others to enable
+(e.g. a converter or metrics service):
+
+```bash
+systemctl list-unit-files 'ds-*'
+```
+
+> This service enable/start step is required on **Debian/Ubuntu** too — the
+> `.deb` package likewise does not start these services for you.
+
+## Step 7: Flush the cache
 
 After installation, clear any stale cache so the server starts cleanly:
 
@@ -169,3 +188,285 @@ steps are intentionally omitted for a standalone install:
 - **Manual `service ... start` calls** — needed in the image because Docker has
   no init system. On systemd-based Ubuntu the services start automatically.
 
+# Document Server — RHEL/RPM Installation Guide
+
+This guide describes how to install the Document Server `.rpm` package on a
+standalone RHEL-family host. It covers the same components as the Debian/Ubuntu
+guide, adapted to the RPM ecosystem, and reflects steps verified on Fedora.
+Where the two diverge meaningfully, see
+[Differences from the Debian install](#differences-from-the-debian-install).
+
+> Unlike Debian, RPM packages have no debconf prompt. The database and service
+> connections are configured after install with the bundled
+> **`documentserver-configure.sh`** script (Step 7) — see that step for details.
+
+## System requirements
+
+- **OS:** RHEL 9 family — Rocky Linux 9, AlmaLinux 9, CentOS Stream 9 — or Fedora.
+- **Architecture:** `x86_64` or `aarch64`. Check yours with `uname -m`.
+- **Privileges:** root / `sudo` access.
+
+The package depends on a PostgreSQL database, a Redis cache, and a RabbitMQ
+message broker. This guide runs all three locally; point the package at remote
+instances when you run the configuration script in Step 7.
+
+## Step 1: Enable EPEL
+
+Several dependencies (RabbitMQ, Supervisor, and on some releases `jq`) live in
+the EPEL repository, which is not enabled by default on RHEL-family systems:
+
+```bash
+sudo dnf install -y epel-release
+sudo dnf update -y
+```
+
+On RHEL proper (not Rocky/Alma/Fedora), also enable the CodeReady Builder repo
+that EPEL depends on:
+
+```bash
+sudo subscription-manager repos --enable codeready-builder-for-rhel-9-$(arch)-rpms
+```
+
+## Step 2: Install dependencies
+
+Package names differ from Debian/Ubuntu. The mapping:
+
+| Purpose                | Debian/Ubuntu     | RHEL/RPM                          |
+| ---------------------- | ----------------- | --------------------------------- |
+| Database server        | `postgresql`      | `postgresql-server`               |
+| Database client/libs   | `postgresql-client` | `postgresql`                    |
+| Cache                  | `redis-server`    | `redis`                           |
+| Message broker         | `rabbitmq-server` | `rabbitmq-server` (EPEL)          |
+| Web server             | `nginx`           | `nginx`                           |
+| Extra nginx modules    | `nginx-extras`    | *(no direct equivalent — see note)* |
+| Netcat                 | `netcat-openbsd`  | `nmap-ncat`                       |
+| `xxd` hex dump         | *(base)*          | `vim-common`                      |
+| Other tools            | `sudo gdb jq util-linux openssl` | same names         |
+
+Install them:
+
+```bash
+sudo dnf install -y \
+    postgresql-server postgresql postgresql-contrib \
+    redis rabbitmq-server \
+    nginx \
+    sudo gdb jq util-linux nmap-ncat vim-common openssl
+```
+
+> **`nginx-extras` has no RPM equivalent.** On Debian it bundles extra nginx
+> modules into one package; on RHEL the base `nginx` is used, with any required
+> modules added individually as `nginx-mod-*`. Most deployments only need base
+> `nginx`.
+>
+> **PostgreSQL version:** the default RHEL 9 module stream may be older than the
+> PostgreSQL 16 used on Ubuntu 24.04. If your package requires a specific
+> version, add the official PGDG repository instead of the base module.
+
+## Step 3: Install the Microsoft core fonts
+
+Document Server renders documents using Microsoft TrueType core fonts, so they
+must be present **before** you install the package. On RPM systems these come
+from the `msttcore-fonts-installer`, which needs a few helper tools first:
+
+```bash
+sudo dnf install -y curl cabextract xorg-x11-font-utils fontconfig
+sudo rpm -i https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm
+```
+
+This is the RPM equivalent of Debian's `ttf-mscorefonts-installer`. The fonts
+installer carries a EULA — this is what the Dockerfile's `ACCEPT_EULA=Y` is for.
+
+## Step 4: Initialize and prepare PostgreSQL
+
+Unlike Debian, RHEL does **not** initialize a database cluster or start the
+service on install. Do both explicitly:
+
+```bash
+sudo postgresql-setup --initdb
+sudo systemctl enable --now postgresql
+```
+
+The default `pg_hba.conf` uses `ident` authentication for TCP connections, which
+rejects the password login the server uses. Switch the `localhost` lines to
+`scram-sha-256`. Note that `localhost` resolves to IPv6 (`::1`) first on Fedora,
+so **both** the `127.0.0.1/32` and `::1/128` lines must be changed:
+
+```bash
+HBA=$(sudo -u postgres psql -tAc "SHOW hba_file;")
+sudo -u postgres sed -i -E '/^(host|hostssl|hostnossl)/ s/\bident\b/scram-sha-256/g' "$HBA"
+sudo -u postgres psql -c "SELECT pg_reload_conf();"
+```
+
+Confirm the change took (every host line should read `scram-sha-256`):
+
+```bash
+sudo -u postgres psql -c "SELECT line_number, address, auth_method \
+FROM pg_hba_file_rules WHERE type IN ('host','hostssl','hostnossl') ORDER BY line_number;"
+```
+
+Create the role and database the server will connect to:
+
+```bash
+sudo -u postgres psql -c "CREATE USER eurooffice WITH PASSWORD 'eurooffice';"
+sudo -u postgres psql -c "CREATE DATABASE eurooffice OWNER eurooffice;"
+```
+
+Then enable and start the remaining services (also not auto-started on RHEL):
+
+```bash
+sudo systemctl enable --now redis rabbitmq-server nginx
+```
+
+> **Production note:** `eurooffice` / `eurooffice` are the defaults from our
+> ephemeral Docker image. Use a strong password for a real deployment, and reuse
+> it in Step 7.
+
+## Step 5: Download the package
+
+Download the build matching your version, build number, and architecture. RPM
+uses `x86_64`/`aarch64`, not the `amd64`/`arm64` names used for `.deb`:
+
+```bash
+wget https://github.com/Euro-Office/DocumentServer/releases/download/v{version}-{build}/euro-office-documentserver_{version}-{build}_{platform}.deb -O documentserver.rpm
+```
+
+Replace `version` and `build` and `platform` with the release you are installing.
+
+## Step 6: Install the package
+
+```bash
+sudo dnf install -y ./documentserver.rpm
+```
+
+Using `dnf install` (rather than `rpm -i`) resolves any remaining dependencies
+automatically. Do **not** set `DS_DOCKER_INSTALLATION=true` — that flag is only
+for our Docker build.
+
+## Step 7: Configure the Document Server
+
+Run the bundled configuration script. This is the recommended way to set the
+database, Redis, and RabbitMQ connections — much easier and less error-prone
+than editing the config files by hand:
+
+```bash
+sudo documentserver-configure.sh
+```
+
+It prompts interactively for the connection details, writes the configuration,
+and initializes the database schema. Supply the values from Step 4 (PostgreSQL
+host `localhost`, port `5432`, database/user/password `eurooffice`).
+
+> **Manual alternative.** If you need an unattended setup instead of the
+> interactive script, you can edit the config file directly under your config
+> root (`EO_CONF`, i.e. `/etc/<company>/<product>/local.json`):
+>
+> ```json
+> {
+>   "services": { "CoAuthoring": { "sql": {
+>     "type": "postgres", "dbHost": "localhost", "dbPort": "5432",
+>     "dbName": "eurooffice", "dbUser": "eurooffice", "dbPass": "eurooffice"
+>   } } }
+> }
+> ```
+
+## Step 8: Resolve the nginx port conflict (Fedora)
+
+On Fedora, the stock `nginx` ships its own `server` block on port 80 in
+`/etc/nginx/nginx.conf`, which conflicts with the Document Server's nginx config
+(it can shadow or override the package's site). The simplest fix is to change
+the Document Server's `listen` port to a free one.
+
+Find which files nginx actually loads, and which blocks claim which port:
+
+```bash
+sudo nginx -T 2>/dev/null | grep -E "configuration file|listen|server_name"
+```
+
+Locate the Document Server's nginx config from the `# configuration file`
+headers, change its `listen` directive to a free port (or resolve the
+`default_server` conflict — only one `default_server` per port is allowed),
+then validate and reload:
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+## Step 9: Enable and start the Document Server services
+
+The package's services are not enabled or started automatically. Enable and
+start them (`--now` does both):
+
+```bash
+sudo systemctl enable --now ds-docservice.service ds-example.service
+```
+
+List all units the package provides in case there are others to enable
+(e.g. a converter or metrics service):
+
+```bash
+systemctl list-unit-files 'ds-*'
+```
+
+> This service enable/start step is required on **Debian/Ubuntu** too — the
+> `.deb` package likewise does not start these services for you.
+
+## Step 10: Flush the cache
+
+```bash
+sudo documentserver-flush-cache.sh -r false
+```
+
+## Verify the installation
+
+Browse to the host on the port set in Step 8 (for example
+`http://<server-ip>:<port>/`) to confirm the welcome/example page loads, and
+check the logs under `/var/log/<company>/<product>/`.
+
+## Troubleshooting
+
+**Page returns 403 or 502 (SELinux).** RHEL/Fedora ship with SELinux enforcing,
+which blocks nginx from reaching its upstream by default. Allow it:
+
+```bash
+sudo setsebool -P httpd_can_network_connect 1
+```
+
+**Page unreachable (firewall).** Open the port you set in Step 8 in firewalld,
+e.g. for HTTP/HTTPS:
+
+```bash
+sudo firewall-cmd --add-service=http --add-service=https --permanent
+sudo firewall-cmd --reload
+```
+
+**`Ident authentication failed` for the database.** The `pg_hba.conf` change in
+Step 4 did not take. Re-run the `pg_hba_file_rules` query there to confirm every
+host line reads `scram-sha-256`, and that `pg_reload_conf()` was run. Remember
+both the `127.0.0.1/32` and `::1/128` lines must be changed.
+
+**Services won't start.** Check `journalctl -u ds-docservice.service` and verify
+Step 7 completed — the services need a valid database configuration to start.
+
+## Differences from the Debian install
+
+- **No debconf — use `documentserver-configure.sh`.** RPM has no install-time
+  prompt; the configuration script (Step 7) sets the connections instead. (The
+  same script also exists on Debian and can be used there.)
+- **Microsoft fonts** come from the SourceForge `msttcore-fonts-installer`
+  (Step 3), not Debian's `ttf-mscorefonts-installer`.
+- **EPEL required** for RabbitMQ, Supervisor, and sometimes `jq` (Step 1).
+- **PostgreSQL is not auto-set-up.** RHEL needs `postgresql-setup --initdb`, an
+  explicit start, and the `pg_hba.conf` change (Step 4).
+- **Services start disabled** — Redis/RabbitMQ/Nginx and the `ds-*` units must
+  be enabled and started explicitly. (Enabling the `ds-*` units is needed on
+  Debian too.)
+- **No `nginx-extras`**, and Fedora's stock nginx server block conflicts on
+  port 80 (Step 8).
+- **Different package names and architecture labels** (`nmap-ncat` vs
+  `netcat-openbsd`, `x86_64`/`aarch64` vs `amd64`/`arm64`).
+- **SELinux and firewalld** are active by default and may need the adjustments
+  in Troubleshooting.
+
+As with the Debian guide, the Docker-only pieces — `DS_DOCKER_INSTALLATION`,
+the supervisor configs, and the custom entrypoint — are not used in a standalone
+install.
