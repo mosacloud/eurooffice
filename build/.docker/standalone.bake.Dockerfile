@@ -26,6 +26,16 @@ ENV EO_CONF=${EO_CONF}
 ENV COMPANY_NAME_LOW=${COMPANY_NAME_LOW}
 ENV PRODUCT_NAME_LOW=${PRODUCT_NAME_LOW}
 
+
+#### Hotfix: nginx 1.24.0-2ubuntu7.10 broke editors, 
+#### switch back to 1.24.0-2ubuntu7.9 for now
+ARG APT_SNAPSHOT=20260602T120000Z
+RUN apt-get -y update && \
+    apt-get -yq install ca-certificates && \
+    sed -i '/^Suites:/a Snapshot: '"${APT_SNAPSHOT}" /etc/apt/sources.list.d/ubuntu.sources
+#### Hotfix
+
+
 RUN apt-get -y update && \
     ACCEPT_EULA=Y apt-get -yq install \
         postgresql postgresql-client redis-server rabbitmq-server \
