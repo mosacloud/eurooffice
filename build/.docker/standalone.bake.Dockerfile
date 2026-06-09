@@ -43,7 +43,7 @@ RUN apt-get -y update && \
 
 RUN ACCEPT_EULA=Y apt-get -yq install \
         postgresql postgresql-client redis-server rabbitmq-server \
-        nginx sudo gdb nginx-extras supervisor jq util-linux \
+        sudo gdb supervisor jq util-linux \
         netcat-openbsd xxd openssl && \
     rm -rf /var/lib/apt/lists/*
 
