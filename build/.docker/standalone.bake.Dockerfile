@@ -32,12 +32,11 @@ ENV PRODUCT_NAME_LOW=${PRODUCT_NAME_LOW}
 ARG APT_SNAPSHOT=20260602T120000Z
 RUN apt-get -y update && \
     apt-get -yq install ca-certificates && \
-    printf "Types: deb\nURIs: http://snapshot.ubuntu.com/ubuntu/%s\nSuites: noble noble-updates noble-security\nComponents: main universe restricted multiverse\n" "${APT_SNAPSHOT}" \
-        > /etc/apt/sources.list.d/snapshot.sources && \
+    sed -i '/^Suites:/a Snapshot: '"${APT_SNAPSHOT}" /etc/apt/sources.list.d/ubuntu.sources && \
     apt-get -y update && \
     apt-get -yq install --allow-downgrades nginx=1.24.0-2ubuntu7.9 nginx-extras=1.24.0-2ubuntu7.9 && \
     apt-mark hold nginx nginx-extras && \
-    rm /etc/apt/sources.list.d/snapshot.sources && \
+    sed -i '/^Snapshot:/d' /etc/apt/sources.list.d/ubuntu.sources && \
     apt-get -y update
 #### End hotfix
 
