@@ -27,17 +27,22 @@ ENV COMPANY_NAME_LOW=${COMPANY_NAME_LOW}
 ENV PRODUCT_NAME_LOW=${PRODUCT_NAME_LOW}
 
 
-#### Hotfix: nginx 1.24.0-2ubuntu7.10 broke editors, 
-#### switch back to 1.24.0-2ubuntu7.9 for now
+#### Hotfix: nginx 1.24.0-2ubuntu7.10 broke editors,
+#### pin only nginx to 1.24.0-2ubuntu7.9 from the snapshot and hold it
 ARG APT_SNAPSHOT=20260602T120000Z
 RUN apt-get -y update && \
     apt-get -yq install ca-certificates && \
-    sed -i '/^Suites:/a Snapshot: '"${APT_SNAPSHOT}" /etc/apt/sources.list.d/ubuntu.sources
-#### Hotfix
+    echo "deb http://snapshot.ubuntu.com/ubuntu/${APT_SNAPSHOT} noble main" \
+        > /etc/apt/sources.list.d/snapshot.list && \
+    apt-get -y update && \
+    apt-get -yq install nginx=1.24.0-2ubuntu7.9 nginx-extras=1.24.0-2ubuntu7.9 && \
+    apt-mark hold nginx nginx-extras && \
+    rm /etc/apt/sources.list.d/snapshot.list && \
+    apt-get -y update
+#### End hotfix
 
 
-RUN apt-get -y update && \
-    ACCEPT_EULA=Y apt-get -yq install \
+RUN ACCEPT_EULA=Y apt-get -yq install \
         postgresql postgresql-client redis-server rabbitmq-server \
         nginx sudo gdb nginx-extras supervisor jq util-linux \
         netcat-openbsd xxd openssl && \
