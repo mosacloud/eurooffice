@@ -42,6 +42,14 @@ jobs:
             [document-templates]="main"
           )
 
+          BODY="$RUNNER_TEMP/pr-body.md"
+          {
+            echo "Automated nightly submodule bump."
+            echo
+            echo "Updates each submodule to the latest commit on its tracking branch."
+            echo
+          } > "$BODY"
+
           for path in "${!BRANCHES[@]}"; do
             branch="${BRANCHES[$path]}"
             if [ ! -d "$path" ]; then
@@ -50,9 +58,23 @@ jobs:
             fi
             echo "Updating $path → $branch"
             pushd "$path" > /dev/null
+            old_sha="$(git rev-parse HEAD)"
             git fetch origin
             git checkout "$branch"
             git reset --hard "origin/$branch"
+            new_sha="$(git rev-parse HEAD)"
+            if [ "$old_sha" != "$new_sha" ]; then
+              count="$(git rev-list --count "$old_sha..$new_sha")"
+              {
+                echo "### $path ($branch) — $count new commit(s)"
+                echo
+                echo '```'
+                git log --no-merges --pretty=format:'%h %s' "$old_sha..$new_sha"
+                echo
+                echo '```'
+                echo
+              } >> "$BODY"
+            fi
             popd > /dev/null
           done
 
@@ -65,7 +87,4 @@ jobs:
           delete-branch: true
           commit-message: "chore: update submodules to latest main branch"
           title: "chore: update submodules to latest main branch"
-          body: |
-            Automated nightly submodule bump.
-
-            Updates each submodule to the latest commit on its tracking branch.
+          body-path: ${{ runner.temp }}/pr-body.md
