@@ -335,7 +335,7 @@ FROM python:3.11-slim-bookworm AS utils
         rm -rf /var/lib/apt/lists/*
     COPY build/scripts/orchestrated/sqlplus /usr/bin/sqlplus
     COPY build/scripts/orchestrated/disql /usr/bin/disql
-    COPY --from=onlyoffice/damengdb:8.1.2 /opt/dmdbms/bin /dameng
+    COPY --from=onlyoffice/damengdb:8.1.3 /opt/dmdbms/bin /dameng
     USER ds
 
 FROM statsd/statsd AS metrics
