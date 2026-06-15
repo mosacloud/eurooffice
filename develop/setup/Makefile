@@ -59,12 +59,24 @@ web-apps:
 	cd $(EO_DEV)/web-apps/build && \
 	npm ci && \
 	BUILD_ROOT=$(EO_ROOT) grunt $(SKIP_IMAGEMIN) $(CFLAGS) && \
+	BUILD_ROOT=$(EO_ROOT) node scripts/inline-svgs.js && \
+	BUILD_ROOT=$(EO_ROOT) THEME=euro-office node scripts/deploy-theme-images.js && \
+	BUILD_ROOT=$(EO_ROOT) node scripts/deploy-embed.js && \
+	( \
+	cd $(EO_DEV)/web-apps/vendor/framework7-react && \
+	npm install --include=dev --production=false && \
+	( TARGET_EDITOR=word  NODE_ENV=production node build/build.js & \
+	TARGET_EDITOR=cell  NODE_ENV=production node build/build.js & \
+	TARGET_EDITOR=slide NODE_ENV=production node build/build.js & \
+	TARGET_EDITOR=visio NODE_ENV=production node build/build.js & \
+	wait ) ) && \
 	( \
 	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.documenteditor.mjs & \
 	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.spreadsheeteditor.mjs & \
 	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.presentationeditor.mjs & \
 	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.visioeditor.mjs & \
 	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.pdfeditor.mjs & \
+	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.forms.mjs & \
 	wait )
 	$(FLUSH_CACHE)
 
@@ -74,12 +86,24 @@ web-apps-dev:
 	python3 merge_and_check.py && \
 	cd $(EO_DEV)/web-apps/build && \
 	BUILD_ROOT=$(EO_ROOT) grunt $(SKIP_IMAGEMIN) $(CFLAGS) && \
+	BUILD_ROOT=$(EO_ROOT) node scripts/inline-svgs.js && \
+	BUILD_ROOT=$(EO_ROOT) THEME=euro-office node scripts/deploy-theme-images.js && \
+	BUILD_ROOT=$(EO_ROOT) node scripts/deploy-embed.js && \
+	( \
+	cd $(EO_DEV)/web-apps/vendor/framework7-react && \
+	npm install --include=dev --production=false && \
+	( TARGET_EDITOR=word  NODE_ENV=production node build/build.js & \
+	TARGET_EDITOR=cell  NODE_ENV=production node build/build.js & \
+	TARGET_EDITOR=slide NODE_ENV=production node build/build.js & \
+	TARGET_EDITOR=visio NODE_ENV=production node build/build.js & \
+	wait ) ) && \
 	( \
 	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.documenteditor.mjs & \
 	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.spreadsheeteditor.mjs & \
 	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.presentationeditor.mjs & \
 	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.visioeditor.mjs & \
 	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.pdfeditor.mjs & \
+	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.forms.mjs & \
 	wait )
 	$(FLUSH_CACHE)
 
