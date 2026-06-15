@@ -14,6 +14,12 @@ SDKJS_FLAGS   :=
 SDKJS_OPTS    := --compiled
 WEBAPPS_FLAGS :=
 
+# Must match the DocumentServer version reported by the SDK (asc_getBuildVersion).
+# onServerVersion() blocks asc_LoadDocument() when there is a mismatch, causing
+# a permanent skeleton UI.  Override on the command line when upgrading the container:
+#   PRODUCT_VERSION=9.3.0 make web-apps-dev
+PRODUCT_VERSION ?= 9.2.1
+
 CHECK_WEBAPPS_DEPS = @test -d $(EO_DEV)/web-apps/build/node_modules || { echo "Run 'make web-apps' first to install dependencies"; exit 1; }
 
 # Dev-friendly cache flush: regenerate nginx cache tag and reload, without
@@ -52,7 +58,14 @@ web-apps:
 	python3 merge_and_check.py && \
 	cd $(EO_DEV)/web-apps/build && \
 	npm ci && \
-	BUILD_ROOT=$(EO_ROOT) grunt $(SKIP_IMAGEMIN) $(CFLAGS)
+	BUILD_ROOT=$(EO_ROOT) grunt $(SKIP_IMAGEMIN) $(CFLAGS) && \
+	( \
+	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.documenteditor.mjs & \
+	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.spreadsheeteditor.mjs & \
+	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.presentationeditor.mjs & \
+	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.visioeditor.mjs & \
+	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.pdfeditor.mjs & \
+	wait )
 	$(FLUSH_CACHE)
 
 web-apps-dev:
@@ -60,7 +73,14 @@ web-apps-dev:
 	cd $(EO_DEV)/web-apps/translation && \
 	python3 merge_and_check.py && \
 	cd $(EO_DEV)/web-apps/build && \
-	BUILD_ROOT=$(EO_ROOT) grunt $(SKIP_IMAGEMIN) --skip-babel $(CFLAGS)
+	BUILD_ROOT=$(EO_ROOT) grunt $(SKIP_IMAGEMIN) $(CFLAGS) && \
+	( \
+	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.documenteditor.mjs & \
+	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.spreadsheeteditor.mjs & \
+	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.presentationeditor.mjs & \
+	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.visioeditor.mjs & \
+	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.pdfeditor.mjs & \
+	wait )
 	$(FLUSH_CACHE)
 
 ## -----------------
