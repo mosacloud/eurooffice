@@ -6,8 +6,6 @@ all: web-apps sdkjs core server #core/wasm
 # ARM64 platform accommodations
 IS_ARM64      := $(filter aarch64,$(shell uname -m))
 CC_PLATFORM   ?= $(if $(IS_ARM64),java,$(shell $(EO_DEV)/sdkjs/build/node_modules/google-closure-compiler-linux/compiler --version >/dev/null 2>&1 && echo "native,java" || echo "java"))
-SKIP_IMAGEMIN := $(if $(IS_ARM64),--skip-imagemin,)
-
 CORE_FLAGS    := -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" -DCMAKE_C_FLAGS_DEBUG="-g -O0"
 SERVER_FLAGS  :=
 SDKJS_FLAGS   :=
@@ -19,6 +17,11 @@ WEBAPPS_FLAGS :=
 # a permanent skeleton UI.  Override on the command line when upgrading the container:
 #   PRODUCT_VERSION=9.3.0 make web-apps-dev
 PRODUCT_VERSION ?= 9.2.1
+
+# Pass SKIP_MOBILE=1 to skip framework7-react mobile builds (~50s saved).
+# Useful when iterating on desktop editor JS/CSS only.
+#   SKIP_MOBILE=1 make web-apps-dev
+SKIP_MOBILE ?= 0
 
 CHECK_WEBAPPS_DEPS = @test -d $(EO_DEV)/web-apps/build/node_modules || { echo "Run 'make web-apps' first to install dependencies"; exit 1; }
 
@@ -53,31 +56,14 @@ endif
 ## -----------------
 
 web-apps:
-	@echo "Building web-apps with flags $(CFLAGS)"
+	@echo "Building web-apps"
 	cd $(EO_DEV)/web-apps/translation && \
 	python3 merge_and_check.py && \
 	cd $(EO_DEV)/web-apps/build && \
 	npm ci && \
-	BUILD_ROOT=$(EO_ROOT) grunt $(SKIP_IMAGEMIN) $(CFLAGS) && \
-	BUILD_ROOT=$(EO_ROOT) node scripts/inline-svgs.js && \
-	BUILD_ROOT=$(EO_ROOT) THEME=euro-office node scripts/deploy-theme-images.js && \
-	BUILD_ROOT=$(EO_ROOT) node scripts/deploy-embed.js && \
-	( \
-	cd $(EO_DEV)/web-apps/vendor/framework7-react && \
-	npm install --include=dev --production=false && \
-	( TARGET_EDITOR=word  NODE_ENV=production node build/build.js & \
-	TARGET_EDITOR=cell  NODE_ENV=production node build/build.js & \
-	TARGET_EDITOR=slide NODE_ENV=production node build/build.js & \
-	TARGET_EDITOR=visio NODE_ENV=production node build/build.js & \
-	wait ) ) && \
-	( \
-	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.documenteditor.mjs & \
-	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.spreadsheeteditor.mjs & \
-	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.presentationeditor.mjs & \
-	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.visioeditor.mjs & \
-	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.pdfeditor.mjs & \
-	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.forms.mjs & \
-	wait )
+	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office \
+	SKIP_MOBILE=$(SKIP_MOBILE) \
+	node scripts/build-pipeline.js
 	$(FLUSH_CACHE)
 
 web-apps-dev:
@@ -85,26 +71,9 @@ web-apps-dev:
 	cd $(EO_DEV)/web-apps/translation && \
 	python3 merge_and_check.py && \
 	cd $(EO_DEV)/web-apps/build && \
-	BUILD_ROOT=$(EO_ROOT) grunt $(SKIP_IMAGEMIN) $(CFLAGS) && \
-	BUILD_ROOT=$(EO_ROOT) node scripts/inline-svgs.js && \
-	BUILD_ROOT=$(EO_ROOT) THEME=euro-office node scripts/deploy-theme-images.js && \
-	BUILD_ROOT=$(EO_ROOT) node scripts/deploy-embed.js && \
-	( \
-	cd $(EO_DEV)/web-apps/vendor/framework7-react && \
-	npm install --include=dev --production=false && \
-	( TARGET_EDITOR=word  NODE_ENV=production node build/build.js & \
-	TARGET_EDITOR=cell  NODE_ENV=production node build/build.js & \
-	TARGET_EDITOR=slide NODE_ENV=production node build/build.js & \
-	TARGET_EDITOR=visio NODE_ENV=production node build/build.js & \
-	wait ) ) && \
-	( \
-	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.documenteditor.mjs & \
-	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.spreadsheeteditor.mjs & \
-	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.presentationeditor.mjs & \
-	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.visioeditor.mjs & \
-	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.pdfeditor.mjs & \
-	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office npx webpack --config webpack.forms.mjs & \
-	wait )
+	BUILD_ROOT=$(EO_ROOT) PRODUCT_VERSION=$(PRODUCT_VERSION) THEME=euro-office \
+	SKIP_MOBILE=$(SKIP_MOBILE) \
+	node scripts/build-pipeline.js
 	$(FLUSH_CACHE)
 
 ## -----------------
