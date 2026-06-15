@@ -183,9 +183,12 @@ FROM ds-base AS docs
     COPY --from=ds-service \
         /var/www/$COMPANY_NAME_LOW/documentserver/document-templates/new \
         /var/www/$COMPANY_NAME_LOW/documentserver/document-templates/new
-    #COPY --from=ds-service \
-    #    /var/www/$COMPANY_NAME_LOW/documentserver/document-formats \
-    #    /var/www/$COMPANY_NAME_LOW/documentserver/document-formats
+    # mosa: document-formats is REQUIRED — config points documentFormatsFile at it and
+    # WOPI /hosting/discovery enumerates editable formats from it. Without it discovery
+    # has zero edit actions and WOPI hosts (drive) can't route any file to this editor.
+    COPY --from=ds-service \
+        /var/www/$COMPANY_NAME_LOW/documentserver/document-formats \
+        /var/www/$COMPANY_NAME_LOW/documentserver/document-formats
     COPY --chown=ds:ds --from=ds-service \
         /var/www/$COMPANY_NAME_LOW/documentserver-example/welcome \
         /var/www/$COMPANY_NAME_LOW/documentserver-example/welcome
