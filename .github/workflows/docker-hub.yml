@@ -1,0 +1,68 @@
+name: Docker Hub Workflow
+run-name: Docker Hub Workflow
+
+# Mosa build pipeline for Euro-Office DocumentServer — modeled on mosacloud/drive's
+# docker-hub.yml, but bake-driven (this repo builds via `docker buildx bake`).
+# Builds the LEAN "cluster" group (orchestrated.bake.Dockerfile — external
+# Postgres/Redis/RabbitMQ, no bundled infra) and pushes to Docker Hub as
+#   mosacloud/eurooffice-cluster-{docs,utils,example}
+# (the <repo>-<component> convention, e.g. mosacloud/drive-backend).
+# We intentionally do NOT build the heavy `standalone` all-in-one here.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "main"
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - "main"
+
+env:
+  SHOULD_PUSH: ${{ github.event_name != 'pull_request' }}
+  # Docker Hub namespace; images become <NS>-cluster-<component>
+  NS: mosacloud/eurooffice
+
+jobs:
+  build-and-push-cluster:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compute version tag
+        id: version
+        run: |
+          VERSION="$(head -n1 VERSION | tr -d '[:space:]')"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Login to Docker Hub
+        if: env.SHOULD_PUSH == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USER }}
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
+      # Build the orchestrated/cluster group. Tags are overridden per target so the
+      # images land under the flat Docker Hub namespace (mosacloud/eurooffice-...).
+      # On main: :dev + :latest + :<version>-mosa.<run#>. On PR: build only (no push).
+      - name: Build & push cluster images
+        uses: docker/bake-action@v5
+        with:
+          workdir: build
+          files: docker-bake.hcl
+          targets: cluster
+          push: ${{ env.SHOULD_PUSH == 'true' }}
+          set: |
+            *.platform=linux/amd64,linux/arm64
+            cluster-docs.tags=docker.io/${{ env.NS }}-cluster-docs:dev,docker.io/${{ env.NS }}-cluster-docs:latest,docker.io/${{ env.NS }}-cluster-docs:${{ steps.version.outputs.version }}-mosa.${{ github.run_number }}
+            cluster-utils.tags=docker.io/${{ env.NS }}-cluster-utils:dev,docker.io/${{ env.NS }}-cluster-utils:latest,docker.io/${{ env.NS }}-cluster-utils:${{ steps.version.outputs.version }}-mosa.${{ github.run_number }}
+            cluster-example.tags=docker.io/${{ env.NS }}-cluster-example:dev,docker.io/${{ env.NS }}-cluster-example:latest,docker.io/${{ env.NS }}-cluster-example:${{ steps.version.outputs.version }}-mosa.${{ github.run_number }}
